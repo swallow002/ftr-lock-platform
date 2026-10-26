@@ -37,7 +37,7 @@ export default function MapPanel({ devices, selectedId, onSelect, position, comp
       L.polyline(TRANSIT_ROUTE, { color: '#15384c', weight: 9, opacity: .6 }).addTo(m);
       L.polyline(TRANSIT_ROUTE, { color: '#1dbaca', weight: 3, dashArray: '7 6' }).addTo(m);
       const icon = L.divIcon({ className: 'train-map-icon', html: '<span>↗</span>', iconSize: [28, 28], iconAnchor: [14, 14] });
-      train.current = L.marker(center, { icon, keyboard: true, title: '模拟运行列车' }).addTo(m);
+      train.current = L.marker(center, { icon, keyboard: true, title: '运行列车' }).addTo(m);
       m.fitBounds(L.latLngBounds(TRANSIT_ROUTE).pad(.15));
     }
     const observer = new ResizeObserver(() => m.invalidateSize()); observer.observe(container.current);
@@ -73,9 +73,8 @@ export default function MapPanel({ devices, selectedId, onSelect, position, comp
     if (position && train.current) train.current.setLatLng(position);
   }, [position]);
   return <div className={`map-shell ${compact ? 'compact-map' : ''}`}>
-    <div ref={container} className="leaflet-host" aria-label={transit ? '列车模拟运行地图' : '区域设备地图'}/>
-    <div className="map-label"><MapPin size={12}/>{transit ? '列车模拟轨迹' : '区域设备分布'}<span>OSM</span></div>
-    {failed && !loaded && <div className="map-fallback" role="status"><MapPin size={16}/><span>底图暂未加载，模拟点位及详情可继续查看</span><button aria-label="重新加载地图" onClick={() => { setFailed(false); tiles.current?.redraw(); window.setTimeout(() => setFailed(true), 12000); }}><RefreshCw size={13}/></button></div>}
-    <div className="map-coordinate-label">真实底图 / 模拟数据</div>
+    <div ref={container} className="leaflet-host" aria-label={transit ? '列车运行地图' : '区域设备地图'}/>
+    <div className="map-label"><MapPin size={12}/>{transit ? '列车运行轨迹' : '区域设备分布'}</div>
+    {failed && !loaded && <div className="map-fallback" role="status"><MapPin size={16}/><span>地图加载失败</span><button aria-label="重新加载地图" onClick={() => { setFailed(false); tiles.current?.redraw(); window.setTimeout(() => setFailed(true), 12000); }}><RefreshCw size={13}/></button></div>}
   </div>;
 }

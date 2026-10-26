@@ -44,7 +44,7 @@ export default function Scene({ snapshot: s, vehicle, abnormal = false, dual = f
   const boxY = baseY + (dual ? s.transfer * 260 : 0);
   const scale = 1 + s.containerHeight * .055;
   const locks = [[215, -55], [785, -55], [215, 55], [785, 55]];
-  return <svg className="scene-svg" viewBox="0 0 1000 560" role="img" aria-label={`${dual ? '双轨道换轨' : '集装箱俯视'}示意图，${s.phase}`}>
+  return <svg className="scene-svg" viewBox="0 0 1000 560" role="img" aria-label={`${dual ? '双轨道换轨' : '集装箱俯视'}作业，${s.phase}`}>
     <defs>
       <pattern id={`grid-${id}`} width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#204253" strokeWidth=".6" opacity=".35"/></pattern>
       <linearGradient id={`box-${id}`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#326f88"/><stop offset=".5" stopColor="#28566e"/><stop offset="1" stopColor="#1a4059"/></linearGradient>
@@ -90,7 +90,5 @@ export default function Scene({ snapshot: s, vehicle, abnormal = false, dual = f
       </g>;
     })}
     <path d="M30 55V30H55 M945 30H970V55 M30 505V530H55 M945 530H970V505" fill="none" stroke="#3c8aa2" strokeWidth="2"/>
-    <text x="45" y="550" fill="#5f849a" fontSize="10" letterSpacing="2">TOP VIEW / {dual ? 'DUAL TRACK' : 'FOUR-POINT SENSING'}</text>
-    <text x="955" y="550" textAnchor="end" fill="#5f849a" fontSize="10">动作幅度示意 · 模拟数据</text>
   </svg>;
 }

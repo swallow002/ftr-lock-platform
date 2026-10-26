@@ -135,7 +135,7 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
     }
   }
   if (!started) {
-    snap.phase = '准备就绪'; snap.instruction = '等待开始';
+    snap.phase = '待作业'; snap.instruction = '等待作业';
     snap.force = loading ? all(0) : [62, 62, 63, 63];
     snap.surfaces = all(loading ? '无' : '重力面');
     snap.containerHeight = loading ? .9 : 0;
