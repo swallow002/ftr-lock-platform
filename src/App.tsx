@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Activity, ArrowDown, ArrowDownToLine, ArrowLeftRight, ArrowRight, ArrowUp, Check, CheckCheck, Clock3, Cpu, Expand, LockKeyhole, LogOut, MapPin, Navigation, Pause, Play, Radio, RotateCcw, RotateCw, ShieldCheck, Signal, TrainFront, TriangleAlert } from 'lucide-react';
 import { coordinates, DEMO_TRAIN, INSPECTION_VEHICLE, MODULES, monitoringSnapshot, operationDuration, operationSnapshot, STAGES, transitSnapshot, type TransitSnapshot, type ModuleId, type Operation, type Snapshot, type Vehicle } from './data';
 import Scene3D from './Scene3D';
-import { CornerLocks, JamModel, LockModel } from './LockModels';
+import { CornerLocks, JamModel } from './LockModels';
 import DeviceManagement from './DeviceManagement';
 import MapPanel from './MapPanel';
 import { usePlayback } from './usePlayback';
@@ -18,8 +18,8 @@ function Login({ onLogin }: { onLogin: () => void }) {
   return <main className="login-page">
     <header className="login-header"><Brand/></header>
     <div className="login-content">
-      <section className="login-intro"><div className="eyebrow"><span/> INTELLIGENT LOCK CONTROL</div><h2>智能 F-TR<br/>锁管控平台</h2>
-        <div className="login-scene"><LockModel surface="无" abnormal={false} autoRotate/></div>
+      <section className="login-intro"><div className="eyebrow"><span/> INTELLIGENT LOCK CONTROL</div><h2><span>智能 F-TR</span><br/>锁管控平台</h2>
+        <div className="login-scene"><Scene3D hero snapshot={monitoringSnapshot('transit', 0)} vehicle={DEMO_TRAIN[0]} abnormal={false} dual={false} transparent resetVersion={0} operation={null} started/></div>
       </section>
       <section className="login-card"><div className="login-card-line"/><div className="eyebrow">F-TR CONTROL CENTER</div><h2>系统登录</h2>
         <form onSubmit={e => { e.preventDefault(); onLogin(); }}>

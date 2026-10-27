@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createModel, loadLock, LOCK_ORIENTATIONS } from './LockModels';
 import { containerBottom, type Operation, type Snapshot, type Vehicle } from './data';
 
-export default function Scene3D({ snapshot, vehicle, abnormal, dual, transparent, resetVersion, operation, started }: { snapshot: Snapshot; vehicle: Vehicle; abnormal: boolean; dual: boolean; transparent: boolean; resetVersion: number; operation: Operation | null; started: boolean }) {
+export default function Scene3D({ snapshot, vehicle, abnormal, dual, transparent, resetVersion, operation, started, hero = false }: { hero?: boolean; snapshot: Snapshot; vehicle: Vehicle; abnormal: boolean; dual: boolean; transparent: boolean; resetVersion: number; operation: Operation | null; started: boolean }) {
   const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
   const update = useRef<() => void>(() => {}), reset = useRef<() => void>(() => {});
   const latest = useRef({snapshot,abnormal,dual,operation,started}); latest.current = {snapshot,abnormal,dual,operation,started};
@@ -62,9 +62,11 @@ export default function Scene3D({ snapshot, vehicle, abnormal, dual, transparent
       element.dispatchEvent(new Event('lock-anchors-updated'));
     };
     update.current=render;reset.current=()=>{controls.reset();render();};controls.addEventListener('change',render);
+    let frame=0, interacting=false; const start=()=>{interacting=true;}; const end=()=>{interacting=false;}; controls.addEventListener('start',start); controls.addEventListener('end',end);
+    const tick=()=>{if(!active)return;if(!interacting){const v=camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0,1,0),.001);camera.position.copy(controls.target).add(v);camera.lookAt(controls.target);render();}frame=requestAnimationFrame(tick);}; if(hero)frame=requestAnimationFrame(tick);
     const observer=new ResizeObserver(render);observer.observe(element);render();
-    return()=>{active=false;observer.disconnect();controls.dispose();lockModels.flat().forEach(m=>m.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());renderer.dispose();update.current=()=>{};reset.current=()=>{};};
-  },[dual]);
+    return()=>{active=false;cancelAnimationFrame(frame);observer.disconnect();controls.removeEventListener('start',start);controls.removeEventListener('end',end);controls.dispose();lockModels.flat().forEach(m=>m.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());renderer.dispose();update.current=()=>{};reset.current=()=>{};};
+  },[dual,hero]);
   useEffect(()=>{update.current();},[snapshot,abnormal,transparent,operation,started]);
   useEffect(()=>{reset.current();},[resetVersion]);
   return <div className="scene3d" ref={host} aria-label={`三维作业画面 ${vehicle.id}`}><canvas ref={canvas}/>{[0,1,2,3].map(i=><span key={i} className="scene3d-anchor" data-lock-anchor={i}/>)}{failed && <div className="scene3d-error">三维模型加载失败</div>}</div>;

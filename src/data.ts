@@ -165,24 +165,27 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
 }
 
 /** Container bottom elevation in metres, aligned to the CAD lock tips. */
+export const LOCK_SUPPORT_HEIGHT = .635 + 30 * .00165;
 export function containerBottom(s: Snapshot, operation: Operation | null, started: boolean): number {
-  const tip = .833;
-  if (!operation) return tip - .122;
+  const tip = .635 + 120.515 * .00165;
+  const resting = LOCK_SUPPORT_HEIGHT;
+  if (!operation) return resting;
   if (operation === 'loading' || operation === 'transfer-load') {
     const first = operation === 'transfer-load' ? 2.7 : 2.6;
+    const scale = (tip - resting) / (first + 3.5);
     if (!started) return tip + .026;
-    if (s.stage === 0) return tip - (first - s.distance) * .02;
-    if (s.stage === 1) return tip - first * .02;
-    if (s.stage === 2) return tip - (first + 3.5 - s.distance) * .02;
-    return tip - (first + 3.5) * .02;
+    if (s.stage === 0) return tip - (first - s.distance) * scale;
+    if (s.stage === 1) return tip - first * scale;
+    if (s.stage === 2) return tip - (first + 3.5 - s.distance) * scale;
+    return resting;
   }
-  const resting = tip - .122;
   if (!started) return resting;
-  if (s.stage === 0) return resting + (3.6 - s.distance) * .02;
-  const guided = resting + .072;
+  const scale = (tip - resting) / 6.1;
+  if (s.stage === 0) return resting + (3.6 - s.distance) * scale;
+  const guided = resting + 3.6 * scale;
   if (operation === 'unloading' && s.stage < 4 || operation === 'transfer-unload' && s.stage === 1) return guided;
   if (operation === 'transfer-unload' && s.stage === 3) return guided + .65;
-  return guided + (operation === 'transfer-unload' ? (5 - s.distance) * .13 : (5 - s.distance) * .02);
+  return guided + (operation === 'transfer-unload' ? (5 - s.distance) * .13 : (5 - s.distance) * scale);
 }
 
 export function monitoringSnapshot(module: 'inspection' | 'transit', time: number, abnormal = false): Snapshot {
