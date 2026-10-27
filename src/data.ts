@@ -2,13 +2,15 @@ export type ModuleId = 'loading' | 'inspection' | 'transfer' | 'transit' | 'unlo
 export type Operation = 'loading' | 'transfer-unload' | 'transfer-load' | 'unloading';
 export type DeviceFilter = 'all' | 'normal' | 'abnormal' | 'offline';
 export type Surface = '无' | '落箱上导向斜面' | '落箱下导向斜面' | '重力面' | '提箱导向面' | '提箱阻挡面';
-export interface LockDevice { id: string; vehicleId: string; battery: number; online: boolean; abnormal: boolean; lat: number; lng: number; }
+import railway from './railRoute.json';
+
+export interface LockDevice { id: string; vehicleId: string; battery: number; online: boolean; abnormal: boolean; lat: number; lng: number; signal: number; lastSeen: number; }
 export interface Vehicle { id: string; container: string; locks: LockDevice[]; }
 export interface Stage { name: string; instruction: string; duration: number; }
 export interface Snapshot {
   stage: number; phase: string; instruction: string; distance: number; unit: string; angle: number;
   force: number[]; surfaces: Surface[]; progress: number; containerHeight: number;
-  rotation: number; transfer: number; jam: boolean; complete: boolean;
+  rotation: number; transfer: number; jam: boolean; jamProgress: number; complete: boolean;
 }
 
 export const MODULES: { id: ModuleId; label: string; en: string; description: string }[] = [
@@ -21,6 +23,7 @@ export const MODULES: { id: ModuleId; label: string; en: string; description: st
 ];
 
 const identifier = (n: number) => `F-TR-${String(n).padStart(n < 5 ? 2 : 3, '0')}`;
+const sessionStart = Date.now();
 export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
   const id = `X70 ${5306203 + v}`;
   return {
@@ -31,6 +34,7 @@ export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
         id: identifier(n + 1), vehicleId: id,
         battery: n === 25 ? 62 : n < 4 ? [86, 84, 85, 86][corner] : 60 + (n * 7) % 38,
         online: ![55, 56, 57].includes(n), abnormal: [55, 56, 57].includes(n),
+        signal: -55 - (n * 7 % 32), lastSeen: sessionStart - (n % 13 + 2) * 60000,
         lat: 41.874444 + (Math.floor(n / 10) - 2) * .005 + Math.sin(n * 2.4) * .0015,
         lng: 123.269722 + (n % 10 - 4) * .004 + Math.cos(n * 1.7) * .001,
       };
@@ -39,7 +43,7 @@ export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
 });
 export const DEMO_TRAIN = FLEET.slice(0, 13);
 export const REGIONAL_DEVICES = FLEET.flatMap(v => v.locks).slice(0, 58);
-export const INSPECTION_VEHICLE = DEMO_TRAIN[0].id;
+export const INSPECTION_VEHICLE = DEMO_TRAIN[6].id;
 
 export function filterDevices(query: string, filter: DeviceFilter) {
   const q = query.trim().toUpperCase().replace(/\s/g, '');
@@ -67,7 +71,8 @@ export const STAGES: Record<Operation, Stage[]> = {
   unloading: [
     { name: '开始提箱', instruction: '起升上升', duration: 8 },
     { name: '右旋调整', instruction: '吊架右旋', duration: 7 },
-    { name: '卡阻处理', instruction: '吊架左旋', duration: 9 },
+    { name: '卡阻识别', instruction: '检测卡阻', duration: 10 },
+    { name: '卡阻处理', instruction: '吊架左旋', duration: 4 },
     { name: '完成提箱', instruction: '起升上升', duration: 6 },
   ],
 };
@@ -88,7 +93,7 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
     stage, phase: stages[stage].name, instruction: stages[stage].instruction,
     distance: 0, unit: 'cm', angle: 0, force: all(0), surfaces: all<Surface>('无'),
     progress: elapsed / duration, containerHeight: .9, rotation: 0,
-    transfer: op === 'transfer-load' ? 1 : 0, jam: false, complete: elapsed >= duration,
+    transfer: op === 'transfer-load' ? 1 : 0, jam: false, jamProgress: 0, complete: elapsed >= duration,
   };
   const loading = op === 'loading' || op === 'transfer-load';
   if (loading) {
@@ -122,9 +127,13 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
       snap.surfaces = all('提箱导向面');
       snap.force = (op === 'unloading' ? [56, 49, 52, 52] : [66, 63, 62, 65]).map(f => f * (1 - p));
     } else if (op === 'unloading' && stage === 2) {
+      snap.rotation = 2.8; snap.containerHeight = .16;
+      snap.surfaces = ['提箱阻挡面', '无', '无', '无']; snap.force = [63 * clamp((p - .8) / .2), 0, 0, 0];
+      snap.jam = true; snap.jamProgress = p;
+    } else if (op === 'unloading' && stage === 3) {
       snap.angle = .2 * (1 - p); snap.rotation = 2.8 * (1 - p); snap.containerHeight = .16;
       snap.surfaces = ['提箱阻挡面', '无', '无', '无']; snap.force = [63 * (1 - p), 0, 0, 0];
-      snap.jam = p < .9;
+      snap.jam = true; snap.jamProgress = 1 + p;
     } else if (op === 'transfer-unload' && stage === 3) {
       snap.containerHeight = 1; snap.transfer = p;
       if (snap.complete) snap.instruction = '等待装车';
@@ -152,21 +161,44 @@ export function monitoringSnapshot(module: 'inspection' | 'transit', time: numbe
       const reading = v + Math.sin(time * .8 + i) * .24;
       return module === 'inspection' && abnormal ? i < 2 ? clamp(reading, 71, 73) : reading : clamp(reading, 61, 63);
     }), surfaces: all('重力面'),
-    progress: 0, containerHeight: 0, rotation: 0, transfer: 0, jam: false, complete: false,
+    progress: 0, containerHeight: 0, rotation: 0, transfer: 0, jam: false, jamProgress: 0, complete: false,
   };
 }
 
-export const TRANSIT_ROUTE: [number, number][] = [
-  [32.144722, 118.883611], [32.150, 118.894], [32.159, 118.908],
-  [32.165, 118.923], [32.170, 118.941], [32.176, 118.951],
-];
-export function transitPosition(time: number): [number, number] {
-  // A return journey avoids teleporting at the end of the demonstration route.
-  const phase = (time % 720) / 360;
-  const position = (phase > 1 ? 2 - phase : phase) * (TRANSIT_ROUTE.length - 1);
-  const i = Math.min(Math.floor(position), TRANSIT_ROUTE.length - 2);
-  const p = position - i;
-  return [lerp(TRANSIT_ROUTE[i][0], TRANSIT_ROUTE[i + 1][0], p), lerp(TRANSIT_ROUTE[i][1], TRANSIT_ROUTE[i + 1][1], p)];
+/** GeoJSON coordinates use longitude first; UI coordinates use latitude first. */
+export type GeoPoint = [number, number];
+export const TRANSIT_ROUTE = railway.coordinates as GeoPoint[];
+const radians = (degrees: number) => degrees * Math.PI / 180;
+export function segmentMeters(a: GeoPoint, b: GeoPoint) {
+  const lat1 = radians(a[1]), lat2 = radians(b[1]);
+  const dlat = lat2 - lat1, dlng = radians(b[0] - a[0]);
+  return 12742000 * Math.asin(Math.min(1, Math.sqrt(Math.sin(dlat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlng / 2) ** 2)));
+}
+const routeDistances = TRANSIT_ROUTE.reduce<number[]>((list, point, i) => { list.push(i ? list[i - 1] + segmentMeters(TRANSIT_ROUTE[i - 1], point) : 0); return list; }, []);
+export const ROUTE_LENGTH = routeDistances[routeDistances.length - 1];
+export interface TransitSnapshot { position: [number, number]; completed: GeoPoint[]; remaining: GeoPoint[]; heading: number; speed: number; arrived: boolean; distance: number; }
+export function transitSnapshot(time: number): TransitSnapshot {
+  const seconds = Math.max(0, time);
+  const distance = Math.min(ROUTE_LENGTH, ROUTE_LENGTH * .25 + (92 * seconds + 6 * (1 - Math.cos(seconds * .2))) / 3.6);
+  let i = 0;
+  while (i < routeDistances.length - 2 && routeDistances[i + 1] < distance) i++;
+  const span = routeDistances[i + 1] - routeDistances[i];
+  const fraction = span ? clamp((distance - routeDistances[i]) / span) : 0;
+  const a = TRANSIT_ROUTE[i], b = TRANSIT_ROUTE[i + 1];
+  const point: GeoPoint = [lerp(a[0], b[0], fraction), lerp(a[1], b[1], fraction)];
+  const heading = (Math.atan2((b[0] - a[0]) * Math.cos(radians(point[1])), b[1] - a[1]) * 180 / Math.PI + 360) % 360;
+  const arrived = distance >= ROUTE_LENGTH;
+  return { position: [point[1], point[0]], completed: [...TRANSIT_ROUTE.slice(0, i + 1), point], remaining: [point, ...TRANSIT_ROUTE.slice(i + 1)], heading, speed: arrived ? 0 : 92 + Math.sin(seconds * .2) * 1.2, arrived, distance };
+}
+export const transitPosition = (time: number): [number, number] => transitSnapshot(time).position;
+
+export function deviceForce(device: LockDevice, time: number) {
+  const seed = Number(device.id.split('-').pop()) || 0;
+  return Math.max(61, Math.min(63, 62 + Math.sin(time * .45 + seed * .7) * .8));
+}
+export function forceHistory(devices: LockDevice[], time: number) {
+  const active = devices.filter(d => d.online);
+  return Array.from({ length: 60 }, (_, i) => active.length ? active.reduce((n, d) => n + deviceForce(d, time - (59 - i)), 0) / active.length : null);
 }
 
 export function coordinates(lat: number, lng: number) {

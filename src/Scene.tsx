@@ -73,22 +73,13 @@ export default function Scene({ snapshot: s, vehicle, abnormal = false, dual = f
       {locks.map(([x, y], i) => {
         const color = abnormal || s.jam && i === 0 ? '#ff6974' : s.force[i] > 0 ? '#42d6df' : '#6b8e9e';
         return <g key={i} transform={`translate(${x} ${y})`}>
-          <rect x="-10" y="-10" width="20" height="20" rx="3" fill="#0a1a27" stroke={color} strokeWidth="2"/>
+          <rect data-lock-anchor={i} x="-10" y="-10" width="20" height="20" rx="3" fill="#0a1a27" stroke={color} strokeWidth="2"/>
           <rect x="-5" y="-5" width="10" height="10" rx="2" fill={color} opacity=".85"/>
           <circle r="18" fill="none" stroke={color} opacity=".3"/>
           {s.force[i] > 0 && <circle r="24" fill="none" stroke={color} opacity=".18"/>}
         </g>;
       })}
     </g>
-    {!dual && locks.map(([x, y], i) => {
-      const top = y < 0;
-      const color = abnormal || s.jam && i === 0 ? '#ff6974' : '#42d6df';
-      return <g key={i}>
-        <path d={`M${x} ${baseY + y + (top ? -18 : 18)}V${top ? 111 : 419}H${x + (x < 500 ? -35 : 35)}`} fill="none" stroke={color} strokeWidth="1" opacity=".6"/>
-        <text x={x} y={top ? 94 : 449} textAnchor="middle" fill="#8caeba" fontSize="11" fontFamily="monospace">{vehicle.locks[i].id}</text>
-        <text x={x} y={top ? 77 : 474} textAnchor="middle" fill={color} fontSize="22" fontFamily="monospace">{s.force[i].toFixed(1)}<tspan fontSize="10" fill="#7795a6"> kN</tspan></text>
-      </g>;
-    })}
     <path d="M30 55V30H55 M945 30H970V55 M30 505V530H55 M945 530H970V505" fill="none" stroke="#3c8aa2" strokeWidth="2"/>
   </svg>;
 }

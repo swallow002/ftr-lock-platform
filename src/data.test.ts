@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEMO_TRAIN, FLEET, filterDevices, INSPECTION_VEHICLE, monitoringSnapshot, operationDuration, operationSnapshot, REGIONAL_DEVICES, STAGES, transitPosition, type Operation } from './data';
+import { DEMO_TRAIN, FLEET, filterDevices, INSPECTION_VEHICLE, monitoringSnapshot, operationDuration, operationSnapshot, REGIONAL_DEVICES, STAGES, TRANSIT_ROUTE, ROUTE_LENGTH, transitSnapshot, type Operation } from './data';
 
 describe('固定模拟设备与统计', () => {
   it('生成440把唯一锁具、110辆车，演示列车13辆', () => {
@@ -9,7 +9,7 @@ describe('固定模拟设备与统计', () => {
     expect(FLEET.every(v => v.locks.length === 4)).toBe(true);
     expect(DEMO_TRAIN).toHaveLength(13);
     expect(DEMO_TRAIN[0].id).toBe('X70 5306203');
-    expect(INSPECTION_VEHICLE).toBe(DEMO_TRAIN[0].id);
+    expect(INSPECTION_VEHICLE).toBe(DEMO_TRAIN[6].id);
   });
   it('区域58把中55正常在线、3离线异常', () => {
     expect(REGIONAL_DEVICES).toHaveLength(58);
@@ -51,14 +51,17 @@ describe('装卸流程的关键边界', () => {
     expect(operationSnapshot('transfer-load', 0, false).transfer).toBe(1);
     const transfer = operationSnapshot('transfer-unload', 20);
     expect(transfer.distance).toBe(5); expect(transfer.unit).toBe('m');
-    const unloading = operationSnapshot('unloading', 24);
+    const unloading = operationSnapshot('unloading', 29);
     expect(unloading.distance).toBe(5); expect(unloading.unit).toBe('cm');
   });
   it('卡阻只作用于第一把锁，处理后清零并关闭弹窗', () => {
     const jam = operationSnapshot('unloading', 15);
-    expect(jam.jam).toBe(true); expect(jam.force).toEqual([63, 0, 0, 0]);
-    expect(jam.angle).toBe(.2); expect(jam.surfaces[0]).toBe('提箱阻挡面');
-    const lifted = operationSnapshot('unloading', 24);
+    expect(jam.jam).toBe(true); expect(jam.force).toEqual([0, 0, 0, 0]);
+    expect(jam.jamProgress).toBe(0); expect(jam.surfaces[0]).toBe('提箱阻挡面');
+    const correction = operationSnapshot('unloading', 25);
+    expect(correction.force).toEqual([63, 0, 0, 0]); expect(correction.angle).toBe(.2);
+    expect(operationSnapshot('unloading', 27).force[0]).toBeCloseTo(31.5);
+    const lifted = operationSnapshot('unloading', 29);
     expect(lifted.jam).toBe(false); expect(lifted.force).toEqual([0, 0, 0, 0]);
   });
   it('换轨卸车后5秒跨轨移动，结束停在目标车上方', () => {
@@ -70,7 +73,7 @@ describe('装卸流程的关键边界', () => {
   });
   it('全部流程每个时间点均有有效快照，重播结果一致', () => {
     (Object.keys(STAGES) as Operation[]).forEach(op => {
-      expect(operationDuration(op)).toBe(op === 'transfer-unload' ? 35 : 30);
+      expect(operationDuration(op)).toBe(op === 'transfer-unload' || op === 'unloading' ? 35 : 30);
       for (let t = 0; t <= operationDuration(op); t += .25) {
         const s = operationSnapshot(op, t);
         expect(s.force).toHaveLength(4); expect(s.force.every(f => Number.isFinite(f) && f >= 0)).toBe(true);
@@ -88,11 +91,15 @@ describe('独立监控场景', () => {
     expect(monitoringSnapshot('transit', 0).phase).toBe('正常运行');
     expect(monitoringSnapshot('inspection', 0, false).phase).toBe('正常运行');
   });
-  it('列车往返轨迹在折返点和循环点连续', () => {
-    const distance = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-    expect(transitPosition(0)).toEqual([32.144722, 118.883611]);
-    expect(distance(transitPosition(359.99), transitPosition(360.01))).toBeLessThan(.0001);
-    expect(distance(transitPosition(719.99), transitPosition(720.01))).toBeLessThan(.0001);
+  it('线路从四分之一处前进，已走与未走轨迹连续，终点停车', () => {
+    expect(TRANSIT_ROUTE).toHaveLength(62);
+    expect(ROUTE_LENGTH).toBeGreaterThan(5000); expect(ROUTE_LENGTH).toBeLessThan(5400);
+    const first = transitSnapshot(0), next = transitSnapshot(10), last = transitSnapshot(10000);
+    expect(first.distance).toBeCloseTo(ROUTE_LENGTH * .25);
+    expect(first.completed.at(-1)).toEqual(first.remaining[0]);
+    expect(next.distance).toBeGreaterThan(first.distance);
+    expect(last.arrived).toBe(true); expect(last.speed).toBe(0);
+    expect(transitSnapshot(20000).position).toEqual(last.position);
   });
   it('正常监控小幅波动始终保持在61至63kN内', () => {
     for (let time = 0; time < 60; time += .5) {
