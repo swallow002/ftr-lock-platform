@@ -99,7 +99,7 @@ function rendererFor(canvas: HTMLCanvasElement) {
 }
 
 // The long-axis ends form the two pairs; the upper guide faces outwards.
-export const LOCK_ORIENTATIONS = [Math.PI, Math.PI, 0, 0] as const;
+export const LOCK_ORIENTATIONS = [-Math.PI / 2, -Math.PI / 2, Math.PI / 2, Math.PI / 2] as const;
 
 /** A single canvas renders the four independently highlighted lock instances. */
 export function CornerLocks({ vehicle, snapshot, abnormal }: { vehicle: { locks: LockDevice[] }; snapshot: Snapshot; abnormal: boolean }) {
@@ -169,7 +169,7 @@ export function CornerLocks({ vehicle, snapshot, abnormal }: { vehicle: { locks:
   </div>;
 }
 
-export function LockModel({ surface, abnormal }: { surface: Surface; abnormal: boolean }) {
+export function LockModel({ surface, abnormal, autoRotate = false }: { surface: Surface; abnormal: boolean; autoRotate?: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const reset = useRef<() => void>(() => {});
@@ -187,14 +187,19 @@ export function LockModel({ surface, abnormal }: { surface: Surface; abnormal: b
     const render = () => { const r = host.getBoundingClientRect(); if (!r.width || !r.height) return; renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); renderer.render(scene, camera); };
     controls.addEventListener('change', render); reset.current = () => { controls.reset(); render(); };
     const observer = new ResizeObserver(render); observer.observe(host);
+    let frame = 0; let interacting = false;
+    const start = () => { interacting = true; }; const end = () => { interacting = false; };
+    controls.addEventListener('start', start); controls.addEventListener('end', end);
     let model: ReturnType<typeof createModel> | undefined;
     loadLock().then(asset => {
       if (!active) return;
       model = createModel(asset); model.update(latestModel.current.surface, latestModel.current.abnormal); scene.add(model.group); render();
       update.current = (next, bad) => { model?.update(next, bad); render(); };
     }).catch(() => { if (active) setFailed(true); });
-    return () => { active = false; observer.disconnect(); controls.dispose(); model?.dispose(); renderer.dispose(); update.current = () => {}; reset.current = () => {}; };
-  }, [attempt]);
+    const tick = () => { if (!active) return; if (autoRotate && model && !interacting) { model.group.rotation.y += .003; render(); } frame = requestAnimationFrame(tick); };
+    if (autoRotate) frame = requestAnimationFrame(tick);
+    return () => { active = false; cancelAnimationFrame(frame); observer.disconnect(); controls.removeEventListener('start', start); controls.removeEventListener('end', end); controls.dispose(); model?.dispose(); renderer.dispose(); update.current = () => {}; reset.current = () => {}; };
+  }, [attempt, autoRotate]);
   useEffect(() => { update.current(surface, abnormal); }, [surface, abnormal]);
   return <div className="detail-model" ref={container} aria-label="锁具三维模型"><canvas ref={canvas}/>{failed ? <button className="model-error" onClick={() => { setFailed(false); setAttempt(n => n + 1); }}>模型加载失败 · 重试</button> : <button className="model-reset" onClick={() => reset.current()} aria-label="恢复模型视角" title="恢复模型视角"><RotateCcw size={14}/></button>}</div>;
 }

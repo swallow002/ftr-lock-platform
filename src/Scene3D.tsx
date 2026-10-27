@@ -54,7 +54,7 @@ export default function Scene3D({ snapshot, vehicle, abnormal, dual, transparent
       boxMat.opacity=transparentRef.current ? .12 : 1;boxMat.depthWrite=!transparentRef.current;
       boxMat.color.set(transparentRef.current ? 0xffffff : 0x39758b);
       const bottom=containerBottom(s,latest.current.operation,latest.current.started);
-      container.position.set(dual?s.transfer*4.6:0,bottom,0);container.rotation.y=THREE.MathUtils.degToRad(s.rotation);
+      container.position.set(dual?s.transfer*4.6:0,bottom,0);container.rotation.y=THREE.MathUtils.degToRad(s.rotation * 6);
       const activeLane=dual && s.transfer>=1 ? 1 : 0;
       lockModels.forEach((models,lane)=>models.forEach((model,i)=>model.update(lane===activeLane?s.surfaces[i]:'无',lane===activeLane&&(latest.current.abnormal || s.jam&&i===0),lane!==activeLane)));
       renderer.render(scene,camera);

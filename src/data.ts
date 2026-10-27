@@ -120,7 +120,7 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
     } else if (stage === 2) {
       snap.distance = 3.5 * (1 - p); snap.containerHeight = lerp(.6, .25, p);
     } else if (stage === 3) {
-      snap.angle = .34 * (1 - p); snap.rotation = -.34 * (1 - p);
+      snap.angle = .34 * (1 - p); snap.rotation = -.34 * Math.sin(Math.PI * p);
       snap.containerHeight = lerp(.25, 0, p); snap.surfaces = all('落箱下导向斜面');
       snap.force = [15, 18, 16, 18].map((f, i) => lerp(f, i < 2 ? 62 : 63, p));
     } else {
@@ -167,22 +167,22 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
 /** Container bottom elevation in metres, aligned to the CAD lock tips. */
 export function containerBottom(s: Snapshot, operation: Operation | null, started: boolean): number {
   const tip = .833;
-  if (!operation) return tip - .061;
+  if (!operation) return tip - .122;
   if (operation === 'loading' || operation === 'transfer-load') {
     const first = operation === 'transfer-load' ? 2.7 : 2.6;
     if (!started) return tip + .026;
-    if (s.stage === 0) return tip - (first - s.distance) / 100;
-    if (s.stage === 1) return tip - first / 100;
-    if (s.stage === 2) return tip - (first + 3.5 - s.distance) / 100;
-    return tip - (first + 3.5) / 100;
+    if (s.stage === 0) return tip - (first - s.distance) * .02;
+    if (s.stage === 1) return tip - first * .02;
+    if (s.stage === 2) return tip - (first + 3.5 - s.distance) * .02;
+    return tip - (first + 3.5) * .02;
   }
-  const resting = tip - .061;
+  const resting = tip - .122;
   if (!started) return resting;
-  if (s.stage === 0) return resting + (3.6 - s.distance) / 100;
-  const guided = resting + .036;
+  if (s.stage === 0) return resting + (3.6 - s.distance) * .02;
+  const guided = resting + .072;
   if (operation === 'unloading' && s.stage < 4 || operation === 'transfer-unload' && s.stage === 1) return guided;
   if (operation === 'transfer-unload' && s.stage === 3) return guided + .65;
-  return guided + (operation === 'transfer-unload' ? (5 - s.distance) * .13 : (5 - s.distance) / 100);
+  return guided + (operation === 'transfer-unload' ? (5 - s.distance) * .13 : (5 - s.distance) * .02);
 }
 
 export function monitoringSnapshot(module: 'inspection' | 'transit', time: number, abnormal = false): Snapshot {

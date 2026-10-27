@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Activity, ArrowDown, ArrowDownToLine, ArrowLeftRight, ArrowRight, ArrowUp, Check, CheckCheck, Clock3, Cpu, Expand, LockKeyhole, LogOut, MapPin, Navigation, Pause, Play, Radio, RotateCcw, RotateCw, ShieldCheck, Signal, TrainFront, TriangleAlert } from 'lucide-react';
 import { coordinates, DEMO_TRAIN, INSPECTION_VEHICLE, MODULES, monitoringSnapshot, operationDuration, operationSnapshot, STAGES, transitSnapshot, type TransitSnapshot, type ModuleId, type Operation, type Snapshot, type Vehicle } from './data';
-import Scene from './Scene';
 import Scene3D from './Scene3D';
-import { CornerLocks, JamModel } from './LockModels';
+import { CornerLocks, JamModel, LockModel } from './LockModels';
 import DeviceManagement from './DeviceManagement';
 import MapPanel from './MapPanel';
 import { usePlayback } from './usePlayback';
@@ -20,7 +19,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
     <header className="login-header"><Brand/></header>
     <div className="login-content">
       <section className="login-intro"><div className="eyebrow"><span/> INTELLIGENT LOCK CONTROL</div><h2>智能 F-TR<br/>锁管控平台</h2>
-        <div className="login-scene"><Scene vehicle={DEMO_TRAIN[0]} snapshot={monitoringSnapshot('transit', 0)}/></div>
+        <div className="login-scene"><LockModel surface="无" abnormal={false} autoRotate/></div>
       </section>
       <section className="login-card"><div className="login-card-line"/><div className="eyebrow">F-TR CONTROL CENTER</div><h2>系统登录</h2>
         <form onSubmit={e => { e.preventDefault(); onLogin(); }}>
@@ -94,7 +93,7 @@ function GuideBanner({ snapshot: s, started }: { snapshot: Snapshot; started: bo
 }
 
 function OperationView({ module, vehicle, transferMode, setTransferMode }: { module: Exclude<ModuleId, 'devices'>; vehicle: Vehicle; transferMode: 'unload' | 'load'; setTransferMode: (mode: 'unload' | 'load') => void }) {
-  const [transparent, setTransparent] = useState(false);
+  const [transparent, setTransparent] = useState(true);
   const [resetVersion, setResetVersion] = useState(0);
   const monitor = module === 'inspection' || module === 'transit';
   const op: Operation = module === 'transfer' ? transferMode === 'unload' ? 'transfer-unload' : 'transfer-load' : module === 'unloading' ? 'unloading' : 'loading';
