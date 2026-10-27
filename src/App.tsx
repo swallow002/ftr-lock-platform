@@ -21,6 +21,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
       <section className="login-intro"><div className="login-title"><div className="eyebrow"><span/> INTELLIGENT LOCK CONTROL</div><h2><span>智能 F-TR</span><br/>锁管控平台</h2></div>
         <div className="login-scene"><div className="login-scene-grid" aria-hidden="true"/><div className="login-scene-corners" aria-hidden="true"/><div className="login-scene-line" aria-hidden="true"/><Scene3D hero snapshot={monitoringSnapshot('transit', 0)} vehicle={DEMO_TRAIN[0]} abnormal={false} dual={false} transparent resetVersion={0} operation={null} started/></div>
       </section>
+      <div className="login-capabilities" aria-label="平台功能"><div className="capabilities-heading"><span>PLATFORM STATUS</span><i/></div><div className="capabilities-list"><div><span className="capability-icon"><Activity size={17}/></span><span><strong>受力监测</strong><small>LOAD MONITORING</small></span></div><div><span className="capability-icon"><ArrowLeftRight size={17}/></span><span><strong>作业指引</strong><small>OPERATION GUIDANCE</small></span></div><div><span className="capability-icon"><Cpu size={17}/></span><span><strong>设备管理</strong><small>DEVICE MANAGEMENT</small></span></div></div></div>
       <section className="login-card"><div className="login-card-line"/><div className="eyebrow">F-TR CONTROL CENTER</div><h2>系统登录</h2>
         <form onSubmit={e => { e.preventDefault(); onLogin(); }}>
           <label htmlFor="username">账号<span>ACCOUNT</span></label><div className="login-input"><Cpu size={17}/><input id="username" autoComplete="off" defaultValue="operator" aria-label="账号"/></div>
@@ -30,6 +31,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
         <div className="login-card-footer"><span><i/>系统就绪</span><span>V1.0</span></div>
       </section>
     </div>
+    <footer className="login-school-footer"><div className="login-school-inner"><img src={`${import.meta.env.BASE_URL}assets/nanjing-railway-logo.png`} alt="南京铁道职业技术学院"/><span>F-TR LOCK CONTROL PLATFORM</span></div></footer>
   </main>;
 }
 
