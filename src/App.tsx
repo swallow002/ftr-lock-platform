@@ -55,8 +55,22 @@ function VehicleStrip({ current, onSelect, inspection = false }: { current: numb
   </div></section>;
 }
 
+type JamFrame = { t: number; translation: [number,number,number]; angle: number; gap: number };
+type JamMotion = { frames: JamFrame[]; contactPoint: [number,number,number] };
 function JamOverlay({ snapshot, lockId }: { snapshot: Snapshot; lockId: string }) {
-  return <div className="jam-overlay" role="status"><div className="jam-heading"><TriangleAlert size={18}/><strong>提箱卡阻</strong><span>{lockId}</span></div><JamModel progress={snapshot.jamProgress}/><div className="jam-readout"><span>提箱阻挡面</span><strong>{snapshot.force[0].toFixed(1)} <small>kN</small></strong><span>{snapshot.jamProgress < 1 ? '卡阻识别' : `吊架左旋 ${snapshot.angle.toFixed(2)}°`}</span></div><div className="jam-progress"><span style={{ width: `${Math.min(snapshot.jamProgress / 2, 1) * 100}%` }}/></div></div>;
+  const [motion, setMotion] = useState<JamMotion | null>(null);
+  useEffect(() => { let active=true; fetch(`${import.meta.env.BASE_URL}assets/jam-motion.json`).then(r=>{if(!r.ok)throw new Error('motion');return r.json() as Promise<JamMotion>;}).then(data=>{if(active)setMotion(data);}).catch(()=>{}); return ()=>{active=false;}; }, []);
+  const progress=snapshot.jamProgress, frame=motion?.frames[Math.min(motion.frames.length-1,Math.round(Math.min(progress,1)*(motion.frames.length-1)))];
+  const translation=frame?.translation, contact=motion?.contactPoint;
+  const rows: [string,string][] = [
+    ['锁具编号',lockId], ['感压位置',snapshot.surfaces[0]], ['阻挡面受力',`${snapshot.force[0].toFixed(1)} kN`],
+    ['接触状态',progress >= 1 ? '解除中' : frame && frame.gap <= .01 ? '接触' : '接近'],
+    ['锁套 X 位移',translation ? `${translation[0].toFixed(2)} mm` : '—'], ['锁套 Y 位移',translation ? `${translation[1].toFixed(2)} mm` : '—'],
+    ['锁套 Z 位移',translation ? `${translation[2].toFixed(2)} mm` : '—'], ['锁套旋转',frame ? `${(frame.angle - Math.max(0,progress-1)*.2).toFixed(2)}°` : '—'],
+    ['接触间隙',frame && progress <= 1 ? `${Math.max(0,frame.gap).toFixed(2)} mm` : '—'], ['吊架左旋余量',progress >= 1 ? `${snapshot.angle.toFixed(2)}°` : '—'],
+    ['接触点坐标',contact && (progress >= 1 || frame && frame.gap <= .01) ? `${contact.map(n=>n.toFixed(1)).join(' / ')} mm` : '—'],
+  ];
+  return <div className="jam-overlay" role="status"><div className="jam-heading"><TriangleAlert size={18}/><strong>提箱卡阻</strong><span>{lockId}</span></div><JamModel progress={progress}/><div className="jam-telemetry">{rows.map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="jam-progress"><span style={{ width: `${(Math.min(progress,1)*10+Math.max(0,progress-1)*4)/14*100}%` }}/></div></div>;
 }
 
 function OperationSidebar({ op, snapshot, started, running }: { op: Operation; snapshot: Snapshot; started: boolean; running: boolean }) {
@@ -80,6 +94,8 @@ function GuideBanner({ snapshot: s, started }: { snapshot: Snapshot; started: bo
 }
 
 function OperationView({ module, vehicle, transferMode, setTransferMode }: { module: Exclude<ModuleId, 'devices'>; vehicle: Vehicle; transferMode: 'unload' | 'load'; setTransferMode: (mode: 'unload' | 'load') => void }) {
+  const [transparent, setTransparent] = useState(false);
+  const [resetVersion, setResetVersion] = useState(0);
   const monitor = module === 'inspection' || module === 'transit';
   const op: Operation = module === 'transfer' ? transferMode === 'unload' ? 'transfer-unload' : 'transfer-load' : module === 'unloading' ? 'unloading' : 'loading';
   const player = usePlayback(monitor ? Infinity : operationDuration(op), monitor);
@@ -97,7 +113,7 @@ function OperationView({ module, vehicle, transferMode, setTransferMode }: { mod
   return <>
     <div className="work-grid">
       {monitor ? <MonitorSidebar module={module} abnormal={abnormal} transit={transit} running={player.running} onToggle={player.running ? player.pause : player.play}/> : <OperationSidebar op={op} snapshot={snapshot} started={player.started} running={player.running}/>}
-      <section className="panel scene-panel"><div className="scene-toolbar"><span><i className={abnormal ? 'red-dot' : ''}/>{monitor ? '四点受力监测' : module === 'transfer' ? '换轨作业' : module === 'unloading' ? '卸车作业' : '装车作业'}</span><div className="scene-toolbar-actions">{module === 'transfer' && <div className="transfer-tabs" aria-label="换轨作业阶段"><button className={transferMode === 'unload' ? 'active' : ''} onClick={() => setTransferMode('unload')}><ArrowUp size={13}/>卸车</button><button className={transferMode === 'load' ? 'active' : ''} onClick={() => setTransferMode('load')}><ArrowDown size={13}/>装车</button></div>}<div className="current-vehicle"><TrainFront size={16}/><span>当前车号</span><strong>{vehicle.id}</strong></div></div></div><div className="scene-wrap"><Scene3D snapshot={{ ...snapshot, force: settleForce }} vehicle={vehicle} abnormal={abnormal} dual={module === 'transfer'}/><CornerLocks vehicle={vehicle} snapshot={{ ...snapshot, force: settleForce }} abnormal={abnormal}/>{snapshot.jam && <JamOverlay snapshot={snapshot} lockId={vehicle.locks[0].id}/>}</div>
+      <section className="panel scene-panel"><div className="scene-toolbar"><span><i className={abnormal ? 'red-dot' : ''}/>{monitor ? '四点受力监测' : module === 'transfer' ? '换轨作业' : module === 'unloading' ? '卸车作业' : '装车作业'}</span><div className="scene-toolbar-actions">{module === 'transfer' && <div className="transfer-tabs" aria-label="换轨作业阶段"><button className={transferMode === 'unload' ? 'active' : ''} onClick={() => setTransferMode('unload')}><ArrowUp size={13}/>卸车</button><button className={transferMode === 'load' ? 'active' : ''} onClick={() => setTransferMode('load')}><ArrowDown size={13}/>装车</button></div>}<div className="current-vehicle"><TrainFront size={16}/><span>当前车号</span><strong>{vehicle.id}</strong></div><div className="scene-toolbar-controls"><button aria-pressed={transparent} onClick={() => setTransparent(v => !v)}>集装箱半透明 {transparent ? '开' : '关'}</button><button aria-label="恢复作业视角" title="恢复作业视角" onClick={() => setResetVersion(v => v + 1)}><RotateCcw size={14}/></button></div></div></div><div className="scene-wrap"><Scene3D snapshot={{ ...snapshot, force: settleForce }} vehicle={vehicle} abnormal={abnormal} dual={module === 'transfer'} transparent={transparent} resetVersion={resetVersion} operation={monitor ? null : op} started={player.started}/><CornerLocks vehicle={vehicle} snapshot={{ ...snapshot, force: settleForce }} abnormal={abnormal}/>{snapshot.jam && <JamOverlay snapshot={snapshot} lockId={vehicle.locks[0].id}/>}</div>
         {monitor ? <div className={`monitor-banner ${abnormal ? 'monitor-warning' : ''}`}>{abnormal ? <TriangleAlert size={19}/> : <ShieldCheck size={19}/>}<div><strong>{abnormal ? '受力不均，建议检查' : '锁具状态正常 · 受力稳定'}</strong></div><span className="live-badge"><i className={player.running ? 'pulsing' : ''}/>{player.running ? '数据更新中' : '刷新已暂停'}</span></div> : <GuideBanner snapshot={snapshot} started={player.started}/>}
       </section>
 

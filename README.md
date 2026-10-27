@@ -40,7 +40,7 @@ npm run preview
 
 MapLibre 与 OpenFreeMap 深色矢量底图需要联网；底图保留 OpenFreeMap、OpenMapTiles 和 OpenStreetMap 署名。轨迹使用随项目发布的 [OpenStreetMap 京沪线区段](https://www.openstreetmap.org/way/385944582)，设备点位为模拟数据。底图不可用时，设备列表与详情仍可使用。
 
-五个作业模块采用可旋转的三维场景，集装箱可切换半透明；左侧两锁斜面向外、右侧相反。锁具 STL 与卡阻动作数据保存在 `public/assets/`。四角采用共享渲染器；设备详情支持旋转、缩放和恢复视角。卡阻画面使用原锁套及原始运动数据。
+五个作业模块采用可旋转的三维场景，集装箱可切换半透明；车架纵向两端各有两把锁，同端朝向一致、两端相反。平车与集装箱 GLB 由提供的 STEP 装配模型转换，平车为适合集装箱的展示比例。锁具 STL 与卡阻动作数据保存在 `public/assets/`。四角采用共享渲染器；设备详情支持旋转、缩放和恢复视角。卡阻画面使用原锁套及原始运动数据。
 
 ## 发布到 GitHub Pages
 

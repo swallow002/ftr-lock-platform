@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEMO_TRAIN, FLEET, filterDevices, INSPECTION_VEHICLE, monitoringSnapshot, operationDuration, operationSnapshot, REGIONAL_DEVICES, STAGES, TRANSIT_ROUTE, ROUTE_LENGTH, transitSnapshot, type Operation } from './data';
+import { LOCK_ORIENTATIONS } from './LockModels';
+import { DEMO_TRAIN, FLEET, filterDevices, INSPECTION_VEHICLE, monitoringSnapshot, operationDuration, operationSnapshot, REGIONAL_DEVICES, STAGES, TRANSIT_ROUTE, ROUTE_LENGTH, transitSnapshot, containerBottom, type Operation } from './data';
 
 describe('固定模拟设备与统计', () => {
   it('生成440把唯一锁具、110辆车，演示列车13辆', () => {
@@ -35,6 +36,11 @@ describe('固定模拟设备与统计', () => {
 });
 
 describe('装卸流程的关键边界', () => {
+  it('车架纵向两端的锁具同向，同端一致且两端相反', () => {
+    expect(LOCK_ORIENTATIONS[0]).toBe(LOCK_ORIENTATIONS[1]);
+    expect(LOCK_ORIENTATIONS[2]).toBe(LOCK_ORIENTATIONS[3]);
+    expect(Math.abs(LOCK_ORIENTATIONS[0] - LOCK_ORIENTATIONS[2])).toBeCloseTo(Math.PI);
+  });
   it('装车保留2.6cm、两次0.34°及3.5cm，跨阶段受力归零', () => {
     const initial = operationSnapshot('loading', 0, false);
     expect(initial.force).toEqual([0, 0, 0, 0]);
@@ -70,6 +76,18 @@ describe('装卸流程的关键边界', () => {
     expect(operationSnapshot('unloading', 27).force[0]).toBeCloseTo(31.5);
     const lifted = operationSnapshot('unloading', 29);
     expect(lifted.jam).toBe(false); expect(lifted.force).toEqual([0, 0, 0, 0]);
+  });
+  it('有受力的阶段箱底与锁具接触，位移连续并符合上下方向', () => {
+    const ops: Operation[] = ['loading','transfer-load','unloading','transfer-unload'];
+    for (const op of ops) {
+      for (let t = 0; t <= operationDuration(op); t += .25) {
+        const shot = operationSnapshot(op,t);
+        if (shot.force.some(f=>f>.01)) expect(containerBottom(shot,op,true)).toBeLessThanOrEqual(.83301);
+        if (t > 0) expect(Math.abs(containerBottom(shot,op,true)-containerBottom(operationSnapshot(op,t-.25),op,true))).toBeLessThan(.04);
+      }
+    }
+    expect(containerBottom(operationSnapshot('loading',17),'loading',true)).toBeLessThan(containerBottom(operationSnapshot('loading',12),'loading',true));
+    expect(containerBottom(operationSnapshot('unloading',35),'unloading',true)).toBeGreaterThan(containerBottom(operationSnapshot('unloading',29),'unloading',true));
   });
   it('换轨卸车后5秒跨轨移动，结束停在目标车上方', () => {
     expect(operationSnapshot('transfer-unload', 30).transfer).toBe(0);

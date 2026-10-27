@@ -81,10 +81,11 @@ export function createModel(asset: GeometryAsset) {
   }
   return {
     group,
-    update(surface: Surface, abnormal: boolean) {
+    update(surface: Surface, abnormal: boolean, inactive = false) {
+      bodyMaterial.color.set(inactive ? 0x586a72 : 0xd67b09);
       accentMaterial.color.set(abnormal ? 0xff596d : 0x3fe2e9);
       bodyMaterial.emissive.set(abnormal ? 0x391015 : 0x000000);
-      Object.entries(accents).forEach(([name, mesh]) => { if (mesh) mesh.visible = name === surface || abnormal && surface === '无' && name === '提箱阻挡面'; });
+      Object.entries(accents).forEach(([name, mesh]) => { if (mesh) mesh.visible = !inactive && (name === surface || abnormal && surface === '无' && name === '提箱阻挡面'); });
     },
     dispose() { bodyMaterial.dispose(); accentMaterial.dispose(); },
   };
@@ -97,8 +98,8 @@ function rendererFor(canvas: HTMLCanvasElement) {
   return renderer;
 }
 
-// The lock's upper guide face points along local +Z. Left corners face outward.
-export const LOCK_ORIENTATIONS = [-Math.PI / 2, Math.PI / 2, -Math.PI / 2, Math.PI / 2] as const;
+// The long-axis ends form the two pairs; the upper guide faces outwards.
+export const LOCK_ORIENTATIONS = [Math.PI, Math.PI, 0, 0] as const;
 
 /** A single canvas renders the four independently highlighted lock instances. */
 export function CornerLocks({ vehicle, snapshot, abnormal }: { vehicle: { locks: LockDevice[] }; snapshot: Snapshot; abnormal: boolean }) {
@@ -242,7 +243,7 @@ export function JamModel({ progress }: { progress: number }) {
         const angle = p > 1 ? jam.motion.endAngle - .2 * (p - 1) : frame.angle;
         const translation = p > 1 ? jam.motion.endTranslation : frame.translation;
         sleeveGroup.matrix.copy(new THREE.Matrix4().makeTranslation(...translation).multiply(new THREE.Matrix4().makeRotationY(THREE.MathUtils.degToRad(angle))).multiply(end));
-        contact.visible = p >= .8; model?.update(p >= .8 ? '提箱阻挡面' : '无', p >= .8); render();
+        const touching = p >= 1 || frame.gap <= .01; contact.visible = touching; model?.update(touching ? '提箱阻挡面' : '无', touching); render();
       };
       update.current = poseUpdate; poseUpdate(latest.current);
     }).catch(() => { if (active) setFailed(true); });

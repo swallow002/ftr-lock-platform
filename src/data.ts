@@ -111,16 +111,16 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
     const initial = op === 'transfer-load' ? 2.7 : 2.6;
     if (stage === 0) {
       snap.distance = initial * (1 - p); snap.containerHeight = lerp(.9, .6, p);
-      snap.rotation = 2.8; snap.surfaces = all('落箱上导向斜面');
+      snap.rotation = .34; snap.surfaces = all('落箱上导向斜面');
       snap.force = [23, 22, 22, 22].map(f => lerp(f, 35, p));
     } else if (stage === 1) {
-      snap.angle = .34 * (1 - p); snap.rotation = 2.8 * (1 - p);
+      snap.angle = .34 * (1 - p); snap.rotation = .34 * (1 - p);
       snap.containerHeight = .6; snap.surfaces = all('落箱上导向斜面');
       snap.force = [56, 56, 58, 56].map(f => lerp(35, f, p));
     } else if (stage === 2) {
       snap.distance = 3.5 * (1 - p); snap.containerHeight = lerp(.6, .25, p);
     } else if (stage === 3) {
-      snap.angle = .34 * (1 - p); snap.rotation = -2 * (1 - p);
+      snap.angle = .34 * (1 - p); snap.rotation = -.34 * (1 - p);
       snap.containerHeight = lerp(.25, 0, p); snap.surfaces = all('落箱下导向斜面');
       snap.force = [15, 18, 16, 18].map((f, i) => lerp(f, i < 2 ? 62 : 63, p));
     } else {
@@ -134,15 +134,15 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
       snap.surfaces = all(p < .15 ? '重力面' : '无');
       snap.force = p < .15 ? [62, 62, 63, 63] : all(0);
     } else if (stage === 1) {
-      snap.angle = .34 * (1 - p); snap.rotation = 2.8 * p; snap.containerHeight = .16;
+      snap.angle = .34 * (1 - p); snap.rotation = .34 * p; snap.containerHeight = .16;
       snap.surfaces = all('提箱导向面');
       snap.force = (op === 'unloading' ? [56, 49, 52, 52] : [66, 63, 62, 65]).map(f => f * (1 - p));
     } else if (op === 'unloading' && stage === 2) {
-      snap.rotation = 2.8; snap.containerHeight = .16;
+      snap.rotation = .34; snap.containerHeight = .16;
       snap.surfaces = ['提箱阻挡面', '无', '无', '无']; snap.force = [63 * clamp((p - .8) / .2), 0, 0, 0];
       snap.jam = true; snap.jamProgress = p;
     } else if (op === 'unloading' && stage === 3) {
-      snap.angle = .2 * (1 - p); snap.rotation = 2.8 * (1 - p); snap.containerHeight = .16;
+      snap.angle = .2 * (1 - p); snap.rotation = .34 * (1 - p); snap.containerHeight = .16;
       snap.surfaces = ['提箱阻挡面', '无', '无', '无']; snap.force = [63 * (1 - p), 0, 0, 0];
       snap.jam = true; snap.jamProgress = 1 + p;
     } else if (op === 'transfer-unload' && stage === 3) {
@@ -159,9 +159,30 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
     snap.force = loading ? all(0) : [62, 62, 63, 63];
     snap.surfaces = all(loading ? '无' : '重力面');
     snap.containerHeight = loading ? .9 : 0;
-    snap.rotation = loading ? 2.8 : 0;
+    snap.rotation = loading ? .34 : 0;
   }
   return snap;
+}
+
+/** Container bottom elevation in metres, aligned to the CAD lock tips. */
+export function containerBottom(s: Snapshot, operation: Operation | null, started: boolean): number {
+  const tip = .833;
+  if (!operation) return tip - .061;
+  if (operation === 'loading' || operation === 'transfer-load') {
+    const first = operation === 'transfer-load' ? 2.7 : 2.6;
+    if (!started) return tip + .026;
+    if (s.stage === 0) return tip - (first - s.distance) / 100;
+    if (s.stage === 1) return tip - first / 100;
+    if (s.stage === 2) return tip - (first + 3.5 - s.distance) / 100;
+    return tip - (first + 3.5) / 100;
+  }
+  const resting = tip - .061;
+  if (!started) return resting;
+  if (s.stage === 0) return resting + (3.6 - s.distance) / 100;
+  const guided = resting + .036;
+  if (operation === 'unloading' && s.stage < 4 || operation === 'transfer-unload' && s.stage === 1) return guided;
+  if (operation === 'transfer-unload' && s.stage === 3) return guided + .65;
+  return guided + (operation === 'transfer-unload' ? (5 - s.distance) * .13 : (5 - s.distance) / 100);
 }
 
 export function monitoringSnapshot(module: 'inspection' | 'transit', time: number, abnormal = false): Snapshot {
