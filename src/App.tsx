@@ -16,10 +16,10 @@ function Brand({ large = false }: { large?: boolean }) {
 function Login({ onLogin }: { onLogin: () => void }) {
   const [showPassword, setShowPassword] = useState(false);
   return <main className="login-page">
-    <header className="login-header"><Brand/></header>
+    <header className="login-header"><Brand/><div className="login-header-status"><i/>系统就绪</div></header>
     <div className="login-content">
       <section className="login-intro"><div className="eyebrow"><span/> INTELLIGENT LOCK CONTROL</div><h2><span>智能 F-TR</span><br/>锁管控平台</h2>
-        <div className="login-scene"><Scene3D hero snapshot={monitoringSnapshot('transit', 0)} vehicle={DEMO_TRAIN[0]} abnormal={false} dual={false} transparent resetVersion={0} operation={null} started/></div>
+        <div className="login-scene"><div className="login-scene-grid" aria-hidden="true"/><div className="login-scene-corners" aria-hidden="true"/><div className="login-scene-line" aria-hidden="true"/><Scene3D hero snapshot={monitoringSnapshot('transit', 0)} vehicle={DEMO_TRAIN[0]} abnormal={false} dual={false} transparent resetVersion={0} operation={null} started/></div>
       </section>
       <section className="login-card"><div className="login-card-line"/><div className="eyebrow">F-TR CONTROL CENTER</div><h2>系统登录</h2>
         <form onSubmit={e => { e.preventDefault(); onLogin(); }}>

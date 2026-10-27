@@ -85,7 +85,7 @@ export function createModel(asset: GeometryAsset) {
       bodyMaterial.color.set(inactive ? 0x586a72 : 0xd67b09);
       accentMaterial.color.set(abnormal ? 0xff596d : 0x3fe2e9);
       bodyMaterial.emissive.set(abnormal ? 0x391015 : 0x000000);
-      Object.entries(accents).forEach(([name, mesh]) => { if (mesh) mesh.visible = !inactive && (abnormal ? (name === surface || surface === '无' && name === '提箱阻挡面') : surface !== '重力面' && name === surface); });
+      Object.entries(accents).forEach(([name, mesh]) => { if (mesh) mesh.visible = !inactive && (name === surface || abnormal && surface === '无' && name === '提箱阻挡面'); });
     },
     dispose() { bodyMaterial.dispose(); accentMaterial.dispose(); },
   };
