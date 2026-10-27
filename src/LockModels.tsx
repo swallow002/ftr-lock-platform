@@ -39,7 +39,7 @@ function extractSurfaces(body: THREE.BufferGeometry) {
   return surfaces;
 }
 
-function loadLock(): Promise<GeometryAsset> {
+export function loadLock(): Promise<GeometryAsset> {
   if (!lockPromise) lockPromise = new STLLoader().loadAsync(assetUrl('ftr-lock.stl')).then(body => {
     body.translate(-90, 0, -90);
     body.computeBoundingBox();
@@ -69,7 +69,7 @@ function createCamera() {
   camera.position.set(290, 220, 330); camera.lookAt(0, 57, 0); return camera;
 }
 
-function createModel(asset: GeometryAsset) {
+export function createModel(asset: GeometryAsset) {
   const group = new THREE.Group();
   const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xd67b09, metalness: .36, roughness: .39 });
   const body = new THREE.Mesh(asset.body, bodyMaterial); group.add(body);
@@ -96,6 +96,9 @@ function rendererFor(canvas: HTMLCanvasElement) {
   renderer.setClearColor(0x000000, 0); renderer.outputColorSpace = THREE.SRGBColorSpace;
   return renderer;
 }
+
+// The lock's upper guide face points along local +Z. Left corners face outward.
+export const LOCK_ORIENTATIONS = [-Math.PI / 2, Math.PI / 2, -Math.PI / 2, Math.PI / 2] as const;
 
 /** A single canvas renders the four independently highlighted lock instances. */
 export function CornerLocks({ vehicle, snapshot, abnormal }: { vehicle: { locks: LockDevice[] }; snapshot: Snapshot; abnormal: boolean }) {
@@ -130,7 +133,7 @@ export function CornerLocks({ vehicle, snapshot, abnormal }: { vehicle: { locks:
       renderer.setScissorTest(false);
       container.querySelectorAll<SVGPathElement>('.corner-connector path').forEach((path, i) => {
         const card = container.querySelector<HTMLElement>(`.corner-${i}`)?.getBoundingClientRect();
-        const anchor = container.parentElement?.querySelector<SVGElement>(`[data-lock-anchor="${i}"]`)?.getBoundingClientRect();
+        const anchor = container.parentElement?.querySelector<HTMLElement>(`[data-lock-anchor="${i}"]`)?.getBoundingClientRect();
         if (!card || !anchor) return;
         const right = i % 2 === 1, top = i < 2;
         const x1 = (right ? card.left : card.right) - bounds.left, y1 = (top ? card.bottom - 12 : card.top + 12) - bounds.top;
@@ -141,13 +144,15 @@ export function CornerLocks({ vehicle, snapshot, abnormal }: { vehicle: { locks:
     };
     update.current = render;
     const observer = new ResizeObserver(render); observer.observe(container);
+    const sceneHost = container.parentElement?.querySelector('.scene3d');
+    sceneHost?.addEventListener('lock-anchors-updated', render);
     loadLock().then(asset => {
       if (!active) return;
-      models = Array.from({ length: 4 }, () => createModel(asset));
+      models = Array.from({ length: 4 }, (_, i) => { const model = createModel(asset); model.group.rotation.y = LOCK_ORIENTATIONS[i]; return model; });
       scenes = models.map(model => { const scene = createScene(); scene.add(model.group); return scene; });
       render();
     }).catch(() => { if (active) setFailed(true); });
-    return () => { active = false; observer.disconnect(); update.current = () => {}; models.forEach(model => model.dispose()); renderer.dispose(); };
+    return () => { active = false; observer.disconnect(); sceneHost?.removeEventListener('lock-anchors-updated', render); update.current = () => {}; models.forEach(model => model.dispose()); renderer.dispose(); };
   }, []);
   useEffect(() => { update.current(); }, [snapshot, abnormal]);
   return <div className="corner-overlay" ref={root}>

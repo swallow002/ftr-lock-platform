@@ -19,6 +19,13 @@ describe('固定模拟设备与统计', () => {
     expect(filterDevices('', 'abnormal').every(d => !d.online)).toBe(true);
     expect(REGIONAL_DEVICES[25].id).toBe('F-TR-026');
   });
+  it('车辆锁具按组靠近，车辆位置沿轨道分散', () => {
+    const vehicle = REGIONAL_DEVICES.slice(0,4), other = REGIONAL_DEVICES.slice(24,28);
+    const distance = (a: typeof vehicle[number], b: typeof vehicle[number]) => Math.hypot((a.lat-b.lat)*111320,(a.lng-b.lng)*94000);
+    expect(Math.max(...vehicle.map(d=>distance(vehicle[0],d)))).toBeLessThan(20);
+    expect(distance(vehicle[0],other[0])).toBeGreaterThan(100);
+    expect(new Set(vehicle.map(d=>`${d.lat},${d.lng}`)).size).toBe(4);
+  });
   it('编号、车号搜索与状态筛选组合，并处理空结果', () => {
     expect(filterDevices(' f-tr-026 ', 'all')).toHaveLength(1);
     expect(filterDevices('X705306203', 'all')).toHaveLength(4);

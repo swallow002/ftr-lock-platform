@@ -24,6 +24,18 @@ export const MODULES: { id: ModuleId; label: string; en: string; description: st
 
 const identifier = (n: number) => `F-TR-${String(n).padStart(n < 5 ? 2 : 3, '0')}`;
 const sessionStart = Date.now();
+// Vehicle centres follow an existing railway segment; four corners stay only metres apart.
+const regionalNodes = [1, 4, 8, 11, 16, 20, 24, 29, 32, 36, 42, 47, 52, 56, 60];
+function deviceLocation(vehicle: number, corner: number) {
+  if (vehicle >= regionalNodes.length) return {lat: 41.874444 + (Math.floor(vehicle / 3) - 2) * .005, lng: 123.269722 + (vehicle % 10 - 4) * .004};
+  const index = regionalNodes[vehicle], points = railway.coordinates;
+  const [lng, lat] = points[index], [nextLng, nextLat] = points[Math.min(index + 1, points.length - 1)];
+  const east = (nextLng - lng) * Math.cos(lat * Math.PI / 180), north = nextLat - lat, len = Math.hypot(east, north) || 1;
+  const along = corner < 2 ? -7 : 7, side = corner % 2 ? 1.25 : -1.25;
+  const dx = along * east / len + side * north / len, dy = along * north / len - side * east / len;
+  return {lat: lat + dy / 111320, lng: lng + dx / (111320 * Math.cos(lat * Math.PI / 180))};
+}
+
 export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
   const id = `X70 ${5306203 + v}`;
   return {
@@ -35,8 +47,7 @@ export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
         battery: n === 25 ? 62 : n < 4 ? [86, 84, 85, 86][corner] : 60 + (n * 7) % 38,
         online: ![55, 56, 57].includes(n), abnormal: [55, 56, 57].includes(n),
         signal: -55 - (n * 7 % 32), lastSeen: sessionStart - (n % 13 + 2) * 60000,
-        lat: 41.874444 + (Math.floor(n / 10) - 2) * .005 + Math.sin(n * 2.4) * .0015,
-        lng: 123.269722 + (n % 10 - 4) * .004 + Math.cos(n * 1.7) * .001,
+        ...deviceLocation(v, corner),
       };
     }),
   };
