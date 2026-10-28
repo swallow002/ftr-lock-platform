@@ -31,7 +31,7 @@ export default function Scene3D({ snapshot, vehicle, abnormal, dual, transparent
     makeTrack(0); if(dual)makeTrack(4.6);
     const container=new THREE.Group();scene.add(container);
     const carGroups=[new THREE.Group(),new THREE.Group()];scene.add(carGroups[0]);if(dual)scene.add(carGroups[1]);carGroups[1].position.x=4.6;
-    const anchors=[[-1.14,-2.94],[1.14,-2.94],[-1.14,2.94],[1.14,2.94]];
+    const anchors=[[-1.14,-2.94],[1.14,-2.94],[-1.14,2.94],[1.14,2.94],[-1.14,-.16],[1.14,-.16],[-1.14,.16],[1.14,.16]];
     const lockGroups=[new THREE.Group(),new THREE.Group()];scene.add(lockGroups[0]);if(dual)scene.add(lockGroups[1]);lockGroups[1].position.x=4.6;
     let lockModels: ReturnType<typeof createModel>[][]=[];
     const loader=new GLTFLoader();
@@ -45,7 +45,7 @@ export default function Scene3D({ snapshot, vehicle, abnormal, dual, transparent
     Promise.all([
       loadCad('flatcar-cad.glb',frameMat,dual?carGroups:[carGroups[0]]),
       loadCad('container-cad.glb',boxMat,[container]),
-      loadLock().then(asset=>{if(!active)return;lockModels=(dual?lockGroups:[lockGroups[0]]).map(group=>anchors.map(([x,z],i)=>{const model=createModel(asset);model.group.rotation.y=LOCK_ORIENTATIONS[i];model.group.scale.setScalar(.00165);model.group.position.set(x,.635,z);group.add(model.group);return model;}));render();}),
+      loadLock().then(asset=>{if(!active)return;lockModels=(dual?lockGroups:[lockGroups[0]]).map(group=>anchors.map(([x,z],i)=>{const model=createModel(asset);model.group.rotation.y=LOCK_ORIENTATIONS[i % 4];model.group.scale.setScalar(.00165);model.group.position.set(x,.635,z);group.add(model.group);return model;}));render();}),
     ]).catch(()=>{if(active)setFailed(true);});
     const world=new THREE.Vector3();
     const render=()=>{if(!active)return; const r=element.getBoundingClientRect();if(!r.width||!r.height)return;
@@ -54,11 +54,11 @@ export default function Scene3D({ snapshot, vehicle, abnormal, dual, transparent
       boxMat.opacity=transparentRef.current ? .12 : 1;boxMat.depthWrite=!transparentRef.current;
       boxMat.color.set(transparentRef.current ? 0xffffff : 0x39758b);
       const bottom=containerBottom(s,latest.current.operation,latest.current.started);
-      container.position.set(dual?s.transfer*4.6:0,bottom,0);container.rotation.y=THREE.MathUtils.degToRad(s.rotation * 6);
+      container.position.set(dual?s.transfer*4.6:0,bottom,-.03);container.rotation.y=THREE.MathUtils.degToRad(s.rotation);
       const activeLane=dual && s.transfer>=1 ? 1 : 0;
-      lockModels.forEach((models,lane)=>models.forEach((model,i)=>model.update(lane===activeLane?s.surfaces[i]:'无',lane===activeLane&&(latest.current.abnormal || s.jam&&i===0),lane!==activeLane)));
+      lockModels.forEach((models,lane)=>models.forEach((model,i)=>model.update(lane===activeLane&&i<4?s.surfaces[i]:'无',lane===activeLane&&i<4&&(latest.current.abnormal || s.jam&&i===0),lane!==activeLane||i>=4)));
       renderer.render(scene,camera);
-      anchors.forEach(([x,z],i)=>{world.set(x+activeLane*4.6,.83,z).project(camera);const marker=element.querySelector<HTMLElement>(`[data-lock-anchor="${i}"]`);if(marker){marker.style.left=`${(world.x+1)*r.width/2}px`;marker.style.top=`${(1-world.y)*r.height/2}px`;}});
+      anchors.slice(0,4).forEach(([x,z],i)=>{world.set(x+activeLane*4.6,.83,z).project(camera);const marker=element.querySelector<HTMLElement>(`[data-lock-anchor="${i}"]`);if(marker){marker.style.left=`${(world.x+1)*r.width/2}px`;marker.style.top=`${(1-world.y)*r.height/2}px`;}});
       element.dispatchEvent(new Event('lock-anchors-updated'));
     };
     update.current=render;reset.current=()=>{controls.reset();render();};controls.addEventListener('change',render);

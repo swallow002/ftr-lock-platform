@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, ArrowDown, ArrowDownToLine, ArrowLeftRight, ArrowRight, ArrowUp, Check, CheckCheck, Clock3, Cpu, Expand, LockKeyhole, LogOut, MapPin, Navigation, Pause, Play, Radio, RotateCcw, RotateCw, ShieldCheck, Signal, TrainFront, TriangleAlert } from 'lucide-react';
-import { coordinates, DEMO_TRAIN, INSPECTION_VEHICLE, MODULES, monitoringSnapshot, operationDuration, operationSnapshot, STAGES, transitSnapshot, type TransitSnapshot, type ModuleId, type Operation, type Snapshot, type Vehicle } from './data';
+import { coordinates, DEMO_TRAIN, TARGET_TRAIN, INSPECTION_VEHICLE, MODULES, monitoringSnapshot, operationDuration, operationSnapshot, STAGES, transitSnapshot, type TransitSnapshot, type ModuleId, type Operation, type Snapshot, type Vehicle } from './data';
 import Scene3D from './Scene3D';
 import { CornerLocks, JamModel } from './LockModels';
 import DeviceManagement from './DeviceManagement';
@@ -18,7 +18,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
   return <main className="login-page">
     <header className="login-header"><Brand/><div className="login-header-status"><i/>系统就绪</div></header>
     <div className="login-content">
-      <section className="login-intro"><div className="login-title"><div className="eyebrow"><span/> INTELLIGENT LOCK CONTROL</div><h2><span>智能 F-TR</span><br/>锁管控平台</h2></div>
+      <section className="login-intro"><div className="login-title"><div className="eyebrow"><span/> INTELLIGENT LOCK CONTROL</div><h2><span>智能 F-TR 锁</span><br/>管控平台</h2></div>
         <div className="login-scene"><div className="login-scene-grid" aria-hidden="true"/><div className="login-scene-corners" aria-hidden="true"/><div className="login-scene-line" aria-hidden="true"/><Scene3D hero snapshot={monitoringSnapshot('transit', 0)} vehicle={DEMO_TRAIN[0]} abnormal={false} dual={false} transparent resetVersion={0} operation={null} started/></div>
       </section>
       <div className="login-capabilities" aria-label="平台功能"><div className="capabilities-heading"><span>PLATFORM STATUS</span><i/></div><div className="capabilities-list"><div><span className="capability-icon"><Activity size={17}/></span><span><strong>受力监测</strong><small>LOAD MONITORING</small></span></div><div><span className="capability-icon"><ArrowLeftRight size={17}/></span><span><strong>作业指引</strong><small>OPERATION GUIDANCE</small></span></div><div><span className="capability-icon"><Cpu size={17}/></span><span><strong>设备管理</strong><small>DEVICE MANAGEMENT</small></span></div></div></div>
@@ -28,10 +28,10 @@ function Login({ onLogin }: { onLogin: () => void }) {
           <label htmlFor="password">密码<span>PASSWORD</span></label><div className="login-input"><LockKeyhole size={17}/><input id="password" type={showPassword ? 'text' : 'password'} autoComplete="off" defaultValue="ftr-control" aria-label="密码"/><button type="button" className="password-toggle" onClick={() => setShowPassword(v => !v)}>{showPassword ? '隐藏' : '显示'}</button></div>
           <button className="login-submit" type="submit">登录<ArrowRight size={19}/></button>
         </form>
-        <div className="login-card-footer"><span><i/>系统就绪</span><span>V1.0</span></div>
+        <div className="login-card-footer"><span><i/>系统就绪</span><span>V2.3</span></div>
       </section>
     </div>
-    <footer className="login-school-footer"><div className="login-school-inner"><img src={`${import.meta.env.BASE_URL}assets/nanjing-railway-logo.png`} alt="南京铁道职业技术学院"/><span>F-TR LOCK CONTROL PLATFORM</span></div></footer>
+    <footer className="login-school-footer"><div className="login-school-inner"><strong className="login-company">南京智锁通轨道科技有限公司</strong><span>F-TR LOCK CONTROL PLATFORM</span></div></footer>
   </main>;
 }
 
@@ -48,9 +48,11 @@ function Stat({ label, value, unit, danger = false, icon }: { label: string; val
   return <div className={`stat-item ${danger ? 'danger' : ''}`}><div className="stat-label">{label}{icon}</div><div className="stat-value">{value}<small>{unit}</small></div></div>;
 }
 
-function VehicleStrip({ current, onSelect, inspection = false }: { current: number; onSelect: (index: number) => void; inspection?: boolean }) {
-  return <section className="vehicle-strip" aria-label="当前列车车辆选择"><div className="vehicle-strip-label"><TrainFront size={17}/><div><strong>当前列车</strong><span>13 辆 / 52 把锁</span></div></div><div className="vehicle-scroll">
-    {DEMO_TRAIN.map((v, i) => <button key={v.id} className={`vehicle-button ${current === i ? 'selected' : ''} ${inspection && v.id === INSPECTION_VEHICLE ? 'has-alert' : ''}`} onClick={() => onSelect(i)} aria-label={`选择车辆 ${v.id}`} aria-pressed={current === i}>
+function VehicleStrip({ current, onSelect, inspection = false, target = false, transfer = false }: { current: number; onSelect: (index: number) => void; inspection?: boolean; target?: boolean; transfer?: boolean }) {
+  const vehicles = target ? TARGET_TRAIN : DEMO_TRAIN;
+  const label = target ? '目标列车' : transfer ? '来源列车' : '当前列车';
+  return <section className="vehicle-strip" aria-label={`${label}车辆选择`}><div className="vehicle-strip-label"><TrainFront size={17}/><div><strong>{label}</strong><span>{target ? `${vehicles.length} 辆` : `${vehicles.length} 辆 / 440 把锁`}</span></div></div><div className="vehicle-scroll">
+    {vehicles.map((v, i) => <button key={v.id} className={`vehicle-button ${current === i ? 'selected' : ''} ${inspection && v.id === INSPECTION_VEHICLE ? 'has-alert' : ''}`} onClick={() => onSelect(i)} aria-label={`选择${label}车辆 ${v.id}`} aria-pressed={current === i}>
       <span className="vehicle-order">{String(i + 1).padStart(2, '0')}{inspection && v.id === INSPECTION_VEHICLE && <TriangleAlert size={9}/>}</span><span className="mini-container"><i/><i/><i/><i/><i/><i/><i/><i/></span><span className="mini-wheels"><i/><i/><i/><i/></span><span className="vehicle-number">{v.id.split(' ')[1]}</span>
     </button>)}
   </div></section>;
@@ -77,7 +79,7 @@ function JamOverlay({ snapshot, lockId }: { snapshot: Snapshot; lockId: string }
 function OperationSidebar({ op, snapshot, started, running }: { op: Operation; snapshot: Snapshot; started: boolean; running: boolean }) {
   return <section className="panel operation-panel"><div className="panel-heading"><span><Activity size={15}/>作业进程</span><small>WORKFLOW</small></div><div className="task-status"><i className={running ? 'pulsing' : ''}/>{snapshot.complete ? '作业完成' : !started ? '待作业' : running ? '作业进行中' : '作业已暂停'}</div>
     <ol className="stage-list">{STAGES[op].map((s, i) => <li key={s.name} className={`${started && i === snapshot.stage ? 'current' : ''} ${started && (i < snapshot.stage || snapshot.complete) ? 'done' : ''}`}><span className="stage-dot">{started && (i < snapshot.stage || snapshot.complete) ? <Check size={12}/> : String(i + 1).padStart(2, '0')}</span><div><strong>{s.name}</strong><small>{s.instruction}</small></div>{started && i === snapshot.stage && !snapshot.complete && <span className="stage-live"/>}</li>)}</ol>
-    <div className="sidebar-divider"/><div className="sensor-status"><span><Radio size={13}/>感知链路</span><b>4 / 4 在线</b></div><div className="sensor-status"><span><Signal size={13}/>信号状态</span><b>良好</b></div><div className="sensor-status"><span><Clock3 size={13}/>预计时长</span><b>{operationDuration(op)} 秒</b></div>
+    <div className="sidebar-divider"/><div className="sensor-status"><span><Radio size={13}/>感知链路</span><b>8 / 8 在线</b></div><div className="sensor-status"><span><Signal size={13}/>信号状态</span><b>良好</b></div><div className="sensor-status"><span><Clock3 size={13}/>预计时长</span><b>{operationDuration(op)} 秒</b></div>
   </section>;
 }
 
@@ -94,7 +96,7 @@ function GuideBanner({ snapshot: s, started }: { snapshot: Snapshot; started: bo
   return <div className={`guide-banner ${s.jam ? 'guide-alert' : ''} ${s.complete ? 'guide-complete' : ''}`}><div className="guide-icon"><Icon size={24}/></div><div><span>当前操作指引</span><strong>{!started ? '待作业' : s.instruction === '无' ? '落箱完成 · 状态稳定' : s.instruction}</strong></div>{started && (rotation || s.instruction.includes('起升')) && <div className="guide-distance"><strong>{rotation ? value.toFixed(2) : value.toFixed(1)}</strong><span>{rotation ? '°' : s.unit}</span><small>剩余{rotation ? '角度' : '距离'}</small></div>}{s.complete && <span className="complete-tag"><Check size={14}/>作业完成</span>}</div>;
 }
 
-function OperationView({ module, vehicle, transferMode, setTransferMode }: { module: Exclude<ModuleId, 'devices'>; vehicle: Vehicle; transferMode: 'unload' | 'load'; setTransferMode: (mode: 'unload' | 'load') => void }) {
+function OperationView({ module, vehicle, sourceVehicle, targetVehicle, transferMode, setTransferMode }: { module: Exclude<ModuleId, 'devices'>; vehicle: Vehicle; sourceVehicle: Vehicle; targetVehicle: Vehicle; transferMode: 'unload' | 'load'; setTransferMode: (mode: 'unload' | 'load') => void }) {
   const [transparent, setTransparent] = useState(true);
   const [resetVersion, setResetVersion] = useState(0);
   const monitor = module === 'inspection' || module === 'transit';
@@ -102,6 +104,7 @@ function OperationView({ module, vehicle, transferMode, setTransferMode }: { mod
   const player = usePlayback(monitor ? Infinity : operationDuration(op), monitor);
   const abnormal = module === 'inspection' && vehicle.id === INSPECTION_VEHICLE;
   const snapshot = monitor ? monitoringSnapshot(module, player.elapsed, abnormal) : operationSnapshot(op, player.elapsed, player.started);
+  const displayedVehicle = module === 'transfer' && snapshot.transfer >= 1 ? targetVehicle : vehicle;
   const transit = transitSnapshot(player.elapsed);
   const settleForce = snapshot.complete && (op === 'loading' || op === 'transfer-load') ? snapshot.force.map((v, i) => v + Math.sin(Date.now() / 2000 + i) * .04) : snapshot.force;
   const total = operationDuration(op);
@@ -114,7 +117,7 @@ function OperationView({ module, vehicle, transferMode, setTransferMode }: { mod
   return <>
     <div className="work-grid">
       {monitor ? <MonitorSidebar module={module} abnormal={abnormal} transit={transit} running={player.running} onToggle={player.running ? player.pause : player.play}/> : <OperationSidebar op={op} snapshot={snapshot} started={player.started} running={player.running}/>}
-      <section className="panel scene-panel"><div className="scene-toolbar"><span><i className={abnormal ? 'red-dot' : ''}/>{monitor ? '四点受力监测' : module === 'transfer' ? '换轨作业' : module === 'unloading' ? '卸车作业' : '装车作业'}</span><div className="scene-toolbar-actions">{module === 'transfer' && <div className="transfer-tabs" aria-label="换轨作业阶段"><button className={transferMode === 'unload' ? 'active' : ''} onClick={() => setTransferMode('unload')}><ArrowUp size={13}/>卸车</button><button className={transferMode === 'load' ? 'active' : ''} onClick={() => setTransferMode('load')}><ArrowDown size={13}/>装车</button></div>}<div className="current-vehicle"><TrainFront size={16}/><span>当前车号</span><strong>{vehicle.id}</strong></div><div className="scene-toolbar-controls"><button aria-pressed={transparent} onClick={() => setTransparent(v => !v)}>集装箱半透明 {transparent ? '开' : '关'}</button><button aria-label="恢复作业视角" title="恢复作业视角" onClick={() => setResetVersion(v => v + 1)}><RotateCcw size={14}/></button></div></div></div><div className="scene-wrap"><Scene3D snapshot={{ ...snapshot, force: settleForce }} vehicle={vehicle} abnormal={abnormal} dual={module === 'transfer'} transparent={transparent} resetVersion={resetVersion} operation={monitor ? null : op} started={player.started}/><CornerLocks vehicle={vehicle} snapshot={{ ...snapshot, force: settleForce }} abnormal={abnormal}/>{snapshot.jam && <JamOverlay snapshot={snapshot} lockId={vehicle.locks[0].id}/>}</div>
+      <section className="panel scene-panel"><div className="scene-toolbar"><span><i className={abnormal ? 'red-dot' : ''}/>{monitor ? '四点受力监测' : module === 'transfer' ? '换轨作业' : module === 'unloading' ? '卸车作业' : '装车作业'}</span><div className="scene-toolbar-actions">{module === 'transfer' && <div className="transfer-tabs" aria-label="换轨作业阶段"><button className={transferMode === 'unload' ? 'active' : ''} onClick={() => setTransferMode('unload')}><ArrowUp size={13}/>卸车</button><button className={transferMode === 'load' ? 'active' : ''} onClick={() => setTransferMode('load')}><ArrowDown size={13}/>装车</button></div>}<div className="current-vehicle"><TrainFront size={16}/>{module === 'transfer' ? <><span>来源</span><strong>{sourceVehicle.id}</strong><span>目标</span><strong>{targetVehicle.id}</strong></> : <><span>当前车号</span><strong>{vehicle.id}</strong></>}</div><div className="scene-toolbar-controls"><button aria-pressed={transparent} onClick={() => setTransparent(v => !v)}>集装箱半透明 {transparent ? '开' : '关'}</button><button aria-label="恢复作业视角" title="恢复作业视角" onClick={() => setResetVersion(v => v + 1)}><RotateCcw size={14}/></button></div></div></div><div className="scene-wrap"><Scene3D snapshot={{ ...snapshot, force: settleForce }} vehicle={displayedVehicle} abnormal={abnormal} dual={module === 'transfer'} transparent={transparent} resetVersion={resetVersion} operation={monitor ? null : op} started={player.started}/><CornerLocks vehicle={displayedVehicle} snapshot={{ ...snapshot, force: settleForce }} abnormal={abnormal}/><div className="other-locks"><span>其他锁位</span>{displayedVehicle.locks.slice(4).map(lock=><span key={lock.id}>{lock.id} · {lock.battery}%</span>)}</div>{snapshot.jam && <JamOverlay snapshot={snapshot} lockId={vehicle.locks[0].id}/>}</div>
         {monitor ? <div className={`monitor-banner ${abnormal ? 'monitor-warning' : ''}`}>{abnormal ? <TriangleAlert size={19}/> : <ShieldCheck size={19}/>}<div><strong>{abnormal ? '受力不均，建议检查' : '锁具状态正常 · 受力稳定'}</strong></div><span className="live-badge"><i className={player.running ? 'pulsing' : ''}/>{player.running ? '数据更新中' : '刷新已暂停'}</span></div> : <GuideBanner snapshot={snapshot} started={player.started}/>}
       </section>
 
@@ -129,11 +132,12 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [module, setModule] = useState<ModuleId>('loading');
   const [vehicle, setVehicle] = useState(0);
+  const [targetVehicle, setTargetVehicle] = useState(0);
   const [transferMode, setTransferMode] = useState<'unload' | 'load'>('unload');
-  const switchModule = (id: ModuleId) => { setModule(id); setVehicle(id === 'inspection' ? 6 : 0); setTransferMode('unload'); };
+  const switchModule = (id: ModuleId) => { setModule(id); setVehicle(id === 'inspection' ? 6 : 0); setTargetVehicle(0); setTransferMode('unload'); };
   if (!loggedIn) return <Login onLogin={() => { setLoggedIn(true); setModule('loading'); setVehicle(0); }}/>;
   return <div className="app-shell"><Header onLogout={() => setLoggedIn(false)}/><nav className="main-nav" aria-label="系统模块">{MODULES.map((m, i) => { const Icon = navIcons[i]; return <button key={m.id} className={module === m.id ? 'active' : ''} onClick={() => switchModule(m.id)} aria-current={module === m.id ? 'page' : undefined}><Icon size={17}/><span>{m.label}</span><small>{String(i + 1).padStart(2, '0')}</small></button>; })}<div className="nav-status"><i/>系统运行正常</div></nav>
-    <main className={`workspace ${module === 'devices' ? 'device-workspace' : ''}`}>    {module === 'devices' ? <DeviceManagement key={module}/> : <><OperationView key={`${module}-${vehicle}-${transferMode}`} module={module} vehicle={DEMO_TRAIN[vehicle]} transferMode={transferMode} setTransferMode={setTransferMode}/><VehicleStrip current={vehicle} onSelect={setVehicle} inspection={module === 'inspection'}/></>}
-    </main><footer className="app-footer"><span><ShieldCheck size={12}/>F-TR 智能锁具管控平台</span><span className="footer-version">V1.0</span></footer>
+    <main className={`workspace ${module === 'devices' ? 'device-workspace' : ''} ${module === 'transfer' ? 'transfer-workspace' : ''}`}>    {module === 'devices' ? <DeviceManagement key={module}/> : <><OperationView key={`${module}-${vehicle}-${targetVehicle}-${transferMode}`} module={module} vehicle={module === 'transfer' && transferMode === 'load' ? TARGET_TRAIN[targetVehicle] : DEMO_TRAIN[vehicle]} sourceVehicle={DEMO_TRAIN[vehicle]} targetVehicle={TARGET_TRAIN[targetVehicle]} transferMode={transferMode} setTransferMode={setTransferMode}/><VehicleStrip current={vehicle} onSelect={setVehicle} inspection={module === 'inspection'} transfer={module === 'transfer'}/>{module === 'transfer' && <VehicleStrip current={targetVehicle} onSelect={setTargetVehicle} target transfer/>}</>}
+    </main><footer className="app-footer"><span><ShieldCheck size={12}/>F-TR 智能锁具管控平台</span><span className="footer-version">V2.3</span></footer>
   </div>;
 }

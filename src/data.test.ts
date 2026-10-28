@@ -3,12 +3,12 @@ import { LOCK_ORIENTATIONS } from './LockModels';
 import { DEMO_TRAIN, FLEET, filterDevices, INSPECTION_VEHICLE, monitoringSnapshot, operationDuration, operationSnapshot, REGIONAL_DEVICES, STAGES, TRANSIT_ROUTE, ROUTE_LENGTH, transitSnapshot, containerBottom, LOCK_SUPPORT_HEIGHT, type Operation } from './data';
 
 describe('固定模拟设备与统计', () => {
-  it('生成440把唯一锁具、110辆车，演示列车13辆', () => {
+  it('生成440把唯一锁具、55辆车，每车8把', () => {
     const locks = FLEET.flatMap(v => v.locks);
     expect(locks).toHaveLength(440);
     expect(new Set(locks.map(d => d.id)).size).toBe(440);
-    expect(FLEET.every(v => v.locks.length === 4)).toBe(true);
-    expect(DEMO_TRAIN).toHaveLength(13);
+    expect(FLEET.every(v => v.locks.length === 8)).toBe(true);
+    expect(DEMO_TRAIN).toHaveLength(55);
     expect(DEMO_TRAIN[0].id).toBe('X70 5306203');
     expect(INSPECTION_VEHICLE).toBe(DEMO_TRAIN[6].id);
   });
@@ -21,15 +21,15 @@ describe('固定模拟设备与统计', () => {
     expect(REGIONAL_DEVICES[25].id).toBe('F-TR-026');
   });
   it('车辆锁具按组靠近，车辆位置沿轨道分散', () => {
-    const vehicle = REGIONAL_DEVICES.slice(0,4), other = REGIONAL_DEVICES.slice(24,28);
+    const vehicle = REGIONAL_DEVICES.slice(0,8), other = REGIONAL_DEVICES.slice(48,56);
     const distance = (a: typeof vehicle[number], b: typeof vehicle[number]) => Math.hypot((a.lat-b.lat)*111320,(a.lng-b.lng)*94000);
     expect(Math.max(...vehicle.map(d=>distance(vehicle[0],d)))).toBeLessThan(20);
     expect(distance(vehicle[0],other[0])).toBeGreaterThan(100);
-    expect(new Set(vehicle.map(d=>`${d.lat},${d.lng}`)).size).toBe(4);
+    expect(new Set(vehicle.map(d=>`${d.lat},${d.lng}`)).size).toBe(8);
   });
   it('编号、车号搜索与状态筛选组合，并处理空结果', () => {
     expect(filterDevices(' f-tr-026 ', 'all')).toHaveLength(1);
-    expect(filterDevices('X705306203', 'all')).toHaveLength(4);
+    expect(filterDevices('X705306203', 'all')).toHaveLength(8);
     expect(filterDevices('F-TR-026', 'offline')).toHaveLength(0);
     expect(filterDevices('不存在的设备', 'all')).toHaveLength(0);
   });
@@ -40,6 +40,25 @@ describe('装卸流程的关键边界', () => {
     expect(LOCK_ORIENTATIONS[0]).toBe(LOCK_ORIENTATIONS[1]);
     expect(LOCK_ORIENTATIONS[2]).toBe(LOCK_ORIENTATIONS[3]);
     expect(Math.abs(LOCK_ORIENTATIONS[0] - LOCK_ORIENTATIONS[2])).toBeCloseTo(Math.PI);
+  });
+  it('右旋和左旋连续，换轨提箱保持右旋姿态', () => {
+    expect(operationSnapshot('loading', 0, false).rotation).toBe(0);
+    expect(operationSnapshot('loading', 9).rotation).toBeCloseTo(.17);
+    expect(operationSnapshot('loading', 15).rotation).toBeCloseTo(.34);
+    expect(operationSnapshot('loading', 20.5).rotation).toBeCloseTo(.17);
+    expect(operationSnapshot('loading', 24).rotation).toBe(0);
+    for (const op of ['loading', 'unloading', 'transfer-unload', 'transfer-load'] as Operation[]) {
+      for (let t = .01; t < operationDuration(op); t += .01) {
+        expect(Math.abs(operationSnapshot(op, t).rotation - operationSnapshot(op, t - .01).rotation)).toBeLessThan(.002);
+      }
+    }
+    expect(operationSnapshot('transfer-unload', 20).rotation).toBeCloseTo(.34);
+    expect(operationSnapshot('transfer-unload', 30).rotation).toBeCloseTo(.34);
+  });
+  it('同车电量接近且区域末车仅包含两把锁', () => {
+    expect(FLEET.every(v => Math.max(...v.locks.map(l=>l.battery)) - Math.min(...v.locks.map(l=>l.battery)) <= 2)).toBe(true);
+    expect(new Set(FLEET.map(v => v.locks[0].battery)).size).toBeGreaterThan(5);
+    expect(REGIONAL_DEVICES.filter(d=>d.vehicleId===FLEET[7].id)).toHaveLength(2);
   });
   it('装车保留2.6cm、两次0.34°及3.5cm，跨阶段受力归零', () => {
     const initial = operationSnapshot('loading', 0, false);

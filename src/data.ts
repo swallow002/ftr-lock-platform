@@ -31,20 +31,20 @@ function deviceLocation(vehicle: number, corner: number) {
   const index = regionalNodes[vehicle], points = railway.coordinates;
   const [lng, lat] = points[index], [nextLng, nextLat] = points[Math.min(index + 1, points.length - 1)];
   const east = (nextLng - lng) * Math.cos(lat * Math.PI / 180), north = nextLat - lat, len = Math.hypot(east, north) || 1;
-  const along = corner < 2 ? -7 : 7, side = corner % 2 ? 1.25 : -1.25;
+  const along = [-7, -7, 7, 7, -0.8, -0.8, 0.8, 0.8][corner], side = corner % 2 ? 1.25 : -1.25;
   const dx = along * east / len + side * north / len, dy = along * north / len - side * east / len;
   return {lat: lat + dy / 111320, lng: lng + dx / (111320 * Math.cos(lat * Math.PI / 180))};
 }
 
-export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
+export const FLEET: Vehicle[] = Array.from({ length: 55 }, (_, v) => {
   const id = `X70 ${5306203 + v}`;
   return {
     id, container: `TBLU ${274041 + v * 7}`,
-    locks: Array.from({ length: 4 }, (_, corner) => {
-      const n = v * 4 + corner;
+    locks: Array.from({ length: 8 }, (_, corner) => {
+      const n = v * 8 + corner;
       return {
         id: identifier(n + 1), vehicleId: id,
-        battery: n === 25 ? 62 : n < 4 ? [86, 84, 85, 86][corner] : 60 + (n * 7) % 38,
+        battery: Math.min(98, 62 + (v * 7 % 34) + [0, -1, 1, 0, -1, 1, 0, 1][corner]),
         online: ![55, 56, 57].includes(n), abnormal: [55, 56, 57].includes(n),
         signal: -55 - (n * 7 % 32), lastSeen: sessionStart - (n % 13 + 2) * 60000,
         ...deviceLocation(v, corner),
@@ -52,7 +52,12 @@ export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
     }),
   };
 });
-export const DEMO_TRAIN = FLEET.slice(0, 13);
+export const DEMO_TRAIN = FLEET;
+// Target vehicles are a separate train and are not part of the 440-device fleet.
+export const TARGET_TRAIN: Vehicle[] = FLEET.map((vehicle, index) => {
+  const id = `NX70 ${6306203 + index}`;
+  return { ...vehicle, id, locks: vehicle.locks.map((lock, i) => ({ ...lock, id: `T-${String(index * 8 + i + 1).padStart(3, '0')}`, vehicleId: id })) };
+});
 export const REGIONAL_DEVICES = FLEET.flatMap(v => v.locks).slice(0, 58);
 export const INSPECTION_VEHICLE = DEMO_TRAIN[6].id;
 
@@ -111,16 +116,16 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
     const initial = op === 'transfer-load' ? 2.7 : 2.6;
     if (stage === 0) {
       snap.distance = initial * (1 - p); snap.containerHeight = lerp(.9, .6, p);
-      snap.rotation = .34; snap.surfaces = all('落箱上导向斜面');
+      snap.rotation = 0; snap.surfaces = all('落箱上导向斜面');
       snap.force = [23, 22, 22, 22].map(f => lerp(f, 35, p));
     } else if (stage === 1) {
-      snap.angle = .34 * (1 - p); snap.rotation = .34 * (1 - p);
+      snap.angle = .34 * (1 - p); snap.rotation = .34 * p;
       snap.containerHeight = .6; snap.surfaces = all('落箱上导向斜面');
       snap.force = [56, 56, 58, 56].map(f => lerp(35, f, p));
     } else if (stage === 2) {
-      snap.distance = 3.5 * (1 - p); snap.containerHeight = lerp(.6, .25, p);
+      snap.distance = 3.5 * (1 - p); snap.containerHeight = lerp(.6, .25, p); snap.rotation = .34;
     } else if (stage === 3) {
-      snap.angle = .34 * (1 - p); snap.rotation = -.34 * Math.sin(Math.PI * p);
+      snap.angle = .34 * (1 - p); snap.rotation = .34 * (1 - p);
       snap.containerHeight = lerp(.25, 0, p); snap.surfaces = all('落箱下导向斜面');
       snap.force = [15, 18, 16, 18].map((f, i) => lerp(f, i < 2 ? 62 : 63, p));
     } else {
@@ -142,15 +147,16 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
       snap.surfaces = ['提箱阻挡面', '无', '无', '无']; snap.force = [63 * clamp((p - .8) / .2), 0, 0, 0];
       snap.jam = true; snap.jamProgress = p;
     } else if (op === 'unloading' && stage === 3) {
-      snap.angle = .2 * (1 - p); snap.rotation = .34 * (1 - p); snap.containerHeight = .16;
+      snap.angle = .2 * (1 - p); snap.rotation = .34 - .2 * p; snap.containerHeight = .16;
       snap.surfaces = ['提箱阻挡面', '无', '无', '无']; snap.force = [63 * (1 - p), 0, 0, 0];
       snap.jam = true; snap.jamProgress = 1 + p;
     } else if (op === 'transfer-unload' && stage === 3) {
-      snap.containerHeight = 1; snap.transfer = p;
+      snap.containerHeight = 1; snap.transfer = p; snap.rotation = .34;
       if (snap.complete) snap.instruction = '等待装车';
     } else {
       snap.distance = (op === 'transfer-unload' ? 5 : 5) * (1 - p);
       snap.unit = op === 'transfer-unload' ? 'm' : 'cm'; snap.containerHeight = lerp(.16, 1, p);
+      snap.rotation = op === 'transfer-unload' ? .34 : .14;
       if (snap.complete) snap.instruction = '提箱完成';
     }
   }
@@ -159,7 +165,7 @@ export function operationSnapshot(op: Operation, time: number, started = true): 
     snap.force = loading ? all(0) : [62, 62, 63, 63];
     snap.surfaces = all(loading ? '无' : '重力面');
     snap.containerHeight = loading ? .9 : 0;
-    snap.rotation = loading ? .34 : 0;
+    snap.rotation = 0;
   }
   return snap;
 }
@@ -173,7 +179,7 @@ export function containerBottom(s: Snapshot, operation: Operation | null, starte
   if (operation === 'loading' || operation === 'transfer-load') {
     const first = operation === 'transfer-load' ? 2.7 : 2.6;
     const scale = (tip - resting) / (first + 3.5);
-    if (!started) return tip + .026;
+    if (!started) return tip;
     if (s.stage === 0) return tip - (first - s.distance) * scale;
     if (s.stage === 1) return tip - first * scale;
     if (s.stage === 2) return tip - (first + 3.5 - s.distance) * scale;

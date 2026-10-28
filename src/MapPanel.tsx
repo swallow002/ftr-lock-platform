@@ -68,7 +68,9 @@ export default function MapPanel({ devices, selectedId, onSelect, transit, compa
       markers.current = devices.map(d => {
         const el = document.createElement('button'); el.type = 'button'; el.className = `map-device-marker ${d.abnormal ? 'offline' : ''} ${d.id === selectedId ? 'selected' : ''}`;
         el.innerHTML=icon; el.title = `${d.id} · ${d.online ? '在线' : '离线异常'}`; el.setAttribute('aria-label', `地图设备 ${d.id}`); el.onclick = () => latest.current.onSelect?.(d.id);
-        return new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).addTo(m);
+        const group = grouped.get(d.vehicleId) ?? [];
+        const slot = group.findIndex(lock => lock.id === d.id);
+        return new maplibregl.Marker({ element: el, offset: [(slot % 2 ? 1 : -1) * 14, (Math.floor(slot / 2) - 1.5) * 26] }).setLngLat([d.lng, d.lat]).addTo(m);
       });
     }
   }, [devices, selectedId, ready, zoom]);

@@ -157,8 +157,8 @@ export function CornerLocks({ vehicle, snapshot, abnormal }: { vehicle: { locks:
   }, []);
   useEffect(() => { update.current(); }, [snapshot, abnormal]);
   return <div className="corner-overlay" ref={root}>
-    <svg className="corner-connector" aria-hidden="true">{vehicle.locks.map((lock, i) => <path key={lock.id} className={abnormal || snapshot.jam && i === 0 ? 'alert' : ''}/>)}</svg><canvas ref={canvas} className="corner-model-canvas" aria-hidden="true"/>
-    {vehicle.locks.map((lock, i) => {
+    <svg className="corner-connector" aria-hidden="true">{vehicle.locks.slice(0,4).map((lock, i) => <path key={lock.id} className={abnormal || snapshot.jam && i === 0 ? 'alert' : ''}/>)}</svg><canvas ref={canvas} className="corner-model-canvas" aria-hidden="true"/>
+    {vehicle.locks.slice(0,4).map((lock, i) => {
       const bad = abnormal || snapshot.jam && i === 0;
       return <article key={lock.id} className={`corner-card corner-${i} ${bad ? 'abnormal' : ''}`} data-testid={`lock-${i + 1}`}>
         <div className="corner-header"><span><i/>{lock.id}</span><small>{['左前', '右前', '左后', '右后'][i]}角</small></div>
