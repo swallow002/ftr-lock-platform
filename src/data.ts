@@ -31,20 +31,20 @@ function deviceLocation(vehicle: number, corner: number) {
   const index = regionalNodes[vehicle], points = railway.coordinates;
   const [lng, lat] = points[index], [nextLng, nextLat] = points[Math.min(index + 1, points.length - 1)];
   const east = (nextLng - lng) * Math.cos(lat * Math.PI / 180), north = nextLat - lat, len = Math.hypot(east, north) || 1;
-  const along = [-7, -7, 7, 7, -0.8, -0.8, 0.8, 0.8][corner], side = corner % 2 ? 1.25 : -1.25;
+  const along = corner < 2 ? -7 : 7, side = corner % 2 ? 1.25 : -1.25;
   const dx = along * east / len + side * north / len, dy = along * north / len - side * east / len;
   return {lat: lat + dy / 111320, lng: lng + dx / (111320 * Math.cos(lat * Math.PI / 180))};
 }
 
-export const FLEET: Vehicle[] = Array.from({ length: 55 }, (_, v) => {
+export const FLEET: Vehicle[] = Array.from({ length: 110 }, (_, v) => {
   const id = `X70 ${5306203 + v}`;
   return {
     id, container: `TBLU ${274041 + v * 7}`,
-    locks: Array.from({ length: 8 }, (_, corner) => {
-      const n = v * 8 + corner;
+    locks: Array.from({ length: 4 }, (_, corner) => {
+      const n = v * 4 + corner;
       return {
         id: identifier(n + 1), vehicleId: id,
-        battery: Math.min(98, 62 + (v * 7 % 34) + [0, -1, 1, 0, -1, 1, 0, 1][corner]),
+        battery: Math.min(98, 62 + (v * 7 % 34) + [0, -1, 1, 0][corner]),
         online: ![55, 56, 57].includes(n), abnormal: [55, 56, 57].includes(n),
         signal: -55 - (n * 7 % 32), lastSeen: sessionStart - (n % 13 + 2) * 60000,
         ...deviceLocation(v, corner),
@@ -52,11 +52,11 @@ export const FLEET: Vehicle[] = Array.from({ length: 55 }, (_, v) => {
     }),
   };
 });
-export const DEMO_TRAIN = FLEET;
+export const DEMO_TRAIN = FLEET.slice(0, 55);
 // Target vehicles are a separate train and are not part of the 440-device fleet.
-export const TARGET_TRAIN: Vehicle[] = FLEET.map((vehicle, index) => {
+export const TARGET_TRAIN: Vehicle[] = DEMO_TRAIN.map((vehicle, index) => {
   const id = `NX70 ${6306203 + index}`;
-  return { ...vehicle, id, locks: vehicle.locks.map((lock, i) => ({ ...lock, id: `T-${String(index * 8 + i + 1).padStart(3, '0')}`, vehicleId: id })) };
+  return { ...vehicle, id, locks: vehicle.locks.map((lock, i) => ({ ...lock, id: `T-${String(index * 4 + i + 1).padStart(3, '0')}`, vehicleId: id })) };
 });
 export const REGIONAL_DEVICES = FLEET.flatMap(v => v.locks).slice(0, 58);
 export const INSPECTION_VEHICLE = DEMO_TRAIN[6].id;
